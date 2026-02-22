@@ -1,5 +1,4 @@
 import { ApiError } from "../utils/ApiError.js";
-// const { deleteImageCloud } = require("../utils/Cloudinary/cloud");
 
 const handelJwtInvalidSignature = () =>
   new ApiError("Invalid token, Please login again", 401);
