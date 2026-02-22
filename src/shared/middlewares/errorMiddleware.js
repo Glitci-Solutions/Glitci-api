@@ -8,14 +8,27 @@ const handelJwtExpire = () =>
   new ApiError("Expired token, Please login again", 401);
 
 const handleDuplicateFieldsDB = (err) => {
-  // Handle both old (keyValue) and new (errorResponse.keyPattern) MongoDB driver formats
-  const keyValue = err.keyValue || err.errorResponse?.keyPattern;
-  if (!keyValue) {
-    return new ApiError("Duplicate entry. Please use unique values.", 400);
+  // keyValue may be undefined in newer Mongoose / MongoDB driver versions
+  if (err.keyValue && typeof err.keyValue === "object") {
+    const field = Object.keys(err.keyValue)[0];
+    const message = `${field} already exists. Please use another ${field}!`;
+    return new ApiError(message, 400);
   }
-  const field = Object.keys(keyValue)[0];
-  const message = `${field} already exists. Please use another ${field}!`;
-  return new ApiError(message, 400);
+
+  // Fallback: try to extract field name from the error message
+  const match = err.message?.match(/index:\s+(?:\w+\.)*?(\w+)_/);
+  if (match) {
+    const field = match[1];
+    return new ApiError(
+      `${field} already exists. Please use another ${field}!`,
+      400,
+    );
+  }
+
+  return new ApiError(
+    "Duplicate value entered. Please use a different value.",
+    400,
+  );
 };
 
 const handleValidationErrorDB = (err) => {
@@ -27,6 +40,18 @@ const handleValidationErrorDB = (err) => {
 const handleCastErrorDB = (err) => {
   const message = `Invalid ${err.path}: ${err.value}`;
   return new ApiError(message, 400);
+};
+
+const handleMulterError = (err) => {
+  if (err.code === "LIMIT_UNEXPECTED_FILE") {
+    return new ApiError(`Unexpected file field: ${err.field}`, 400);
+  }
+
+  if (err.code === "LIMIT_FILE_SIZE") {
+    return new ApiError("Uploaded file is too large", 400);
+  }
+
+  return new ApiError(err.message || "Invalid file upload", 400);
 };
 
 const sendErrorForDev = (err, res) => {
@@ -62,10 +87,14 @@ export const globalError = async (err, req, res, next) => {
 
   let error = { ...err };
   error.message = err.message;
+  error.name = err.name;
+  error.code = err.code;
+  error.keyValue = err.keyValue;
 
   if (error.code === 11000) error = handleDuplicateFieldsDB(error);
   if (error.name === "ValidationError") error = handleValidationErrorDB(error);
   if (error.name === "CastError") error = handleCastErrorDB(error);
+  if (error.name === "MulterError") error = handleMulterError(error);
   if (error.name === "JsonWebTokenError") error = handelJwtInvalidSignature();
   if (error.name === "TokenExpiredError") error = handelJwtExpire();
 
