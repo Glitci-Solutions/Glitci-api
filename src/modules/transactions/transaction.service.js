@@ -3,6 +3,7 @@ import { ProjectModel } from "../projects/project.model.js";
 import { ProjectMemberModel } from "../projects/projectMember.model.js";
 import { ClientModel } from "../clients/client.model.js";
 import { EmployeeModel } from "../employees/employee.model.js";
+import { EMPLOYMENT_TYPE } from "../../shared/constants/employee.enums.js";
 import { ApiError } from "../../shared/utils/ApiError.js";
 import { normalizeEnum } from "../../shared/utils/apiFeatures.js";
 import { convertToAllCurrencies } from "../../shared/utils/currencyService.js";
@@ -300,16 +301,34 @@ export async function createEmployeePaymentService(payload, userId) {
     project,
     employee,
     amount,
-    category = TRANSACTION_CATEGORY.EMPLOYEE_SALARY,
+    category,
     description,
     date,
     paymentMethod,
+    reference,
   } = payload;
 
   // Validate employee exists
   const employeeDoc = await EmployeeModel.findById(employee).populate("user");
   if (!employeeDoc || !employeeDoc.user?.isActive) {
     throw new ApiError("Employee not found or inactive", 400);
+  }
+
+  // Auto-determine category based on employment type
+  let resolvedCategory;
+  if (category === TRANSACTION_CATEGORY.EMPLOYEE_BONUS) {
+    // Bonus keeps its category — project linkage determines project vs company expense
+    resolvedCategory = TRANSACTION_CATEGORY.EMPLOYEE_BONUS;
+  } else if (employeeDoc.employmentType === EMPLOYMENT_TYPE.FREELANCER) {
+    resolvedCategory = TRANSACTION_CATEGORY.EMPLOYEE_PAYMENT;
+  } else {
+    // FULL_TIME / PART_TIME
+    resolvedCategory = TRANSACTION_CATEGORY.EMPLOYEE_SALARY;
+  }
+
+  // Freelancers require a project
+  if (resolvedCategory === TRANSACTION_CATEGORY.EMPLOYEE_PAYMENT && !project) {
+    throw new ApiError("Project is required for freelancer payments", 400);
   }
 
   // Validate project if provided
@@ -336,7 +355,7 @@ export async function createEmployeePaymentService(payload, userId) {
 
   const transaction = await TransactionModel.create({
     type: TRANSACTION_TYPE.EXPENSE,
-    category,
+    category: resolvedCategory,
     project,
     employee,
     amount,
@@ -345,6 +364,7 @@ export async function createEmployeePaymentService(payload, userId) {
     description: description || `Payment to ${employeeDoc.user.name}`,
     date: date || new Date(),
     paymentMethod,
+    reference,
     addedBy: userId,
   });
 
@@ -353,14 +373,15 @@ export async function createEmployeePaymentService(payload, userId) {
 
 export async function createExpenseService(payload, userId) {
   const {
-    project,
     category,
     amount,
     description,
     date,
     paymentMethod,
     receiptUrl,
+    reference,
   } = payload;
+  let { project } = payload;
 
   // Validate project if provided
   if (project) {
@@ -385,6 +406,7 @@ export async function createExpenseService(payload, userId) {
     date: date || new Date(),
     paymentMethod,
     receiptUrl,
+    reference,
     addedBy: userId,
   });
 

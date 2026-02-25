@@ -211,6 +211,7 @@ export async function getOverviewService(
       const isSalary =
         category === TRANSACTION_CATEGORY.EMPLOYEE_SALARY ||
         category === TRANSACTION_CATEGORY.EMPLOYEE_BONUS ||
+        category === TRANSACTION_CATEGORY.EMPLOYEE_PAYMENT ||
         hasEmployee;
 
       if (isSalary) {

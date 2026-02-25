@@ -73,6 +73,7 @@ export async function getProjectFinancialsService(projectId) {
             $in: [
               TRANSACTION_CATEGORY.EMPLOYEE_SALARY,
               TRANSACTION_CATEGORY.EMPLOYEE_BONUS,
+              TRANSACTION_CATEGORY.EMPLOYEE_PAYMENT,
             ],
           },
         },
@@ -225,6 +226,7 @@ export async function getProjectEmployeeBreakdownService(projectId) {
       $in: [
         TRANSACTION_CATEGORY.EMPLOYEE_SALARY,
         TRANSACTION_CATEGORY.EMPLOYEE_BONUS,
+        TRANSACTION_CATEGORY.EMPLOYEE_PAYMENT,
       ],
     },
     employee: { $ne: null },

@@ -263,11 +263,10 @@ export const employeePaymentValidator = [
 
   body("category")
     .optional()
-    .isIn([
-      TRANSACTION_CATEGORY.EMPLOYEE_SALARY,
-      TRANSACTION_CATEGORY.EMPLOYEE_BONUS,
-    ])
-    .withMessage("Category must be employee_salary or employee_bonus"),
+    .isIn([TRANSACTION_CATEGORY.EMPLOYEE_BONUS])
+    .withMessage(
+      "Category can only be employee_bonus (salary is auto-determined)",
+    ),
 
   body("description").optional().isLength({ max: 500 }).trim(),
 
@@ -290,7 +289,6 @@ export const expenseValidator = [
     .isIn([
       TRANSACTION_CATEGORY.EQUIPMENT,
       TRANSACTION_CATEGORY.SOFTWARE,
-      TRANSACTION_CATEGORY.TRAVEL,
       TRANSACTION_CATEGORY.MARKETING,
       TRANSACTION_CATEGORY.OFFICE,
       TRANSACTION_CATEGORY.UTILITIES,

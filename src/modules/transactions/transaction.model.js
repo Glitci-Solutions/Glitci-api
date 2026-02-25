@@ -26,14 +26,17 @@ const transactionSchema = new mongoose.Schema(
     project: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Project",
+      default: null,
     },
     client: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Client",
+      default: null,
     },
     employee: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Employee",
+      default: null,
     },
     amount: {
       type: Number,

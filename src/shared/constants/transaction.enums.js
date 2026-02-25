@@ -10,6 +10,7 @@ export const TRANSACTION_CATEGORY = Object.freeze({
   // Expense categories
   EMPLOYEE_SALARY: "employee_salary",
   EMPLOYEE_BONUS: "employee_bonus",
+  EMPLOYEE_PAYMENT: "employee_payment",
   EQUIPMENT: "equipment",
   SOFTWARE: "software",
   MARKETING: "marketing",
