@@ -34,22 +34,23 @@ function getDefaultDateRange() {
 }
 
 /**
- * Parse date range from query or use defaults
+ * Parse date range from query string:
+ * - If both 'from' and 'to' are missing -> Lifetime mode.
+ * - If dates are provided -> Filtered mode.
  */
 function parseDateRange(query) {
-  // Lifetime mode: no date filtering
-  if (query.lifetime === "true" || query.lifetime === true) {
+  // If no dates provided, use lifetime mode
+  if (!query.from && !query.to) {
     return { from: null, to: null, isLifetime: true };
   }
 
   const defaults = getDefaultDateRange();
 
-  // When parsing from query string (ISO format like "2026-02-01"),
-  // new Date("2026-02-01") already parses as UTC midnight
+  // Parsing from query string (ISO format like "2026-02-01")
   const from = query.from ? new Date(query.from) : defaults.from;
   const to = query.to ? new Date(query.to) : defaults.to;
 
-  // Set to end of day in UTC for 'to' date
+  // Ensure 'to' date covers the full day in UTC
   to.setUTCHours(23, 59, 59, 999);
 
   return { from, to, isLifetime: false };
