@@ -2,6 +2,7 @@
 import { check, param } from "express-validator";
 import { validatorMiddleware } from "../../shared/middlewares/validatorMiddleware.js";
 import { USER_ROLES } from "../../shared/constants/userRoles.enums.js";
+import { CURRENCIES } from "../../shared/constants/currency.enums.js";
 
 // ----- Admin Validators -----
 
@@ -82,6 +83,12 @@ export const updateMeValidator = [
   check("email").optional().isEmail().withMessage("Invalid email format"),
 
   check("phone").optional().isMobilePhone().withMessage("Invalid phone number"),
+
+  check("currency")
+    .optional()
+    .toUpperCase()
+    .isIn(CURRENCIES)
+    .withMessage("ivalid currency"),
 
   check("skills").optional().isArray().withMessage("Skills must be an array"),
 

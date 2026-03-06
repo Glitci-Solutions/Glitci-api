@@ -30,6 +30,7 @@ export function buildUserResponse(user) {
     image: user?.image?.url || null,
     role: user.role,
     isActive: user.isActive,
+    currency: user.currency,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   };
@@ -296,6 +297,7 @@ export async function updateMeService({
   name,
   email,
   phone,
+  currency,
   skills,
   imageFile,
 }) {
@@ -308,6 +310,7 @@ export async function updateMeService({
   if (name !== undefined) user.name = name;
   if (email !== undefined) user.email = email.toLowerCase();
   if (phone !== undefined) user.phone = phone;
+  if (currency !== undefined) user.currency = currency;
 
   // Handle image upload
   if (imageFile) {

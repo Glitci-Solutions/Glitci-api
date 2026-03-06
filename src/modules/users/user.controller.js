@@ -30,12 +30,10 @@ export const getUser = asyncHandler(async (req, res) => {
 // POST /users
 export const createUser = asyncHandler(async (req, res) => {
   const user = await createUserService(req.body);
-  res
-    .status(201)
-    .json({
-      message: "User created successfully, and email sent with credentials",
-      data: user,
-    });
+  res.status(201).json({
+    message: "User created successfully, and email sent with credentials",
+    data: user,
+  });
 });
 
 // PATCH /users/:id
@@ -73,13 +71,14 @@ export const getMe = asyncHandler(async (req, res) => {
 
 // PATCH /users/me
 export const updateMe = asyncHandler(async (req, res) => {
-  const { name, email, phone, skills } = req.body;
+  const { name, email, phone, skills, currency } = req.body;
 
   const user = await updateMeService({
     userId: req.user._id,
     name,
     email,
     phone,
+    currency,
     skills,
     imageFile: req.file || null,
   });
