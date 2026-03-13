@@ -190,12 +190,12 @@ export const listTransactionsValidator = [
 
   query("employee").optional().isMongoId().withMessage("Invalid employee ID"),
 
-  query("startDate")
+  query("from")
     .optional()
     .isISO8601()
     .withMessage("Invalid start date format"),
 
-  query("endDate")
+  query("to")
     .optional()
     .isISO8601()
     .withMessage("Invalid end date format"),

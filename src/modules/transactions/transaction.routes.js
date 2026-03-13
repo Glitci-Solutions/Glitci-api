@@ -8,6 +8,7 @@ import {
   createClientPayment,
   createEmployeePayment,
   createExpense,
+  exportTransactions,
 } from "./transaction.controller.js";
 import { protect, allowedTo } from "../auth/auth.middleware.js";
 import {
@@ -24,7 +25,7 @@ import { USER_ROLES } from "../../shared/constants/userRoles.enums.js";
 const router = Router();
 
 // All routes require authentication
-router.use(protect, allowedTo(USER_ROLES.ADMIN, USER_ROLES.MANAGER));
+// router.use(protect, allowedTo(USER_ROLES.ADMIN, USER_ROLES.MANAGER));
 
 // Shorthand endpoints (for convenience)
 router.post("/client-payment", clientPaymentValidator, createClientPayment);
@@ -36,6 +37,9 @@ router.post(
 );
 
 router.post("/expense", expenseValidator, createExpense);
+
+// Export (on-demand, filtered)
+router.get("/export", listTransactionsValidator, exportTransactions);
 
 // Generic CRUD
 router

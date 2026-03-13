@@ -8,6 +8,7 @@ import {
   createClientPaymentService,
   createEmployeePaymentService,
   createExpenseService,
+  exportTransactionsService,
 } from "./transaction.service.js";
 
 // ================== TRANSACTION CRUD ==================
@@ -52,4 +53,23 @@ export const createEmployeePayment = asyncHandler(async (req, res) => {
 export const createExpense = asyncHandler(async (req, res) => {
   const result = await createExpenseService(req.body, req.user._id);
   res.status(201).json(result);
+});
+
+// ================== EXPORT ==================
+
+export const exportTransactions = asyncHandler(async (req, res) => {
+  const { workbook, downloadName } = await exportTransactionsService(req.query);
+  
+  // Set headers for file download
+  res.setHeader(
+    "Content-Type",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  );
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename="Glitci-Report.xlsx"; filename*=UTF-8''${encodeURIComponent(downloadName)}`
+  );
+
+  await workbook.xlsx.write(res);
+  res.end();
 });

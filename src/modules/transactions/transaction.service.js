@@ -14,6 +14,7 @@ import {
   TRANSACTION_STATUS,
   PAYMENT_METHOD,
 } from "../../shared/constants/transaction.enums.js";
+import { generateTransactionsWorkbook } from "./transaction.excel.js";
 
 // ================== TRANSACTION CRUD ==================
 
@@ -117,8 +118,8 @@ export async function getTransactionsService(query) {
     client,
     employee,
     paymentMethod,
-    startDate,
-    endDate,
+    from: startDate,
+    to: endDate,
   } = query;
 
   const filter = {};
@@ -168,6 +169,71 @@ export async function getTransactionsService(query) {
     results: total,
     data: transactions,
   };
+}
+
+export async function exportTransactionsService(query) {
+  const {
+    type,
+    category,
+    status,
+    project,
+    client,
+    employee,
+    paymentMethod,
+    from: startDate,
+    to: endDate,
+  } = query;
+
+  const filter = {};
+  let downloadName;
+
+  // Normalize enums (case-insensitive)
+  const normalizedType = normalizeEnum(type, TRANSACTION_TYPE);
+  const normalizedCategory = normalizeEnum(category, TRANSACTION_CATEGORY);
+  const normalizedStatus = normalizeEnum(status, TRANSACTION_STATUS);
+  const normalizedMethod = normalizeEnum(paymentMethod, PAYMENT_METHOD);
+
+  if (normalizedType) filter.type = normalizedType;
+  if (normalizedCategory) filter.category = normalizedCategory;
+  if (normalizedStatus) filter.status = normalizedStatus;
+  if (project) filter.project = project;
+  if (client) filter.client = client;
+  if (employee) filter.employee = employee;
+  if (normalizedMethod) filter.paymentMethod = normalizedMethod;
+
+  if (startDate || endDate) {
+    filter.date = {};
+    if (startDate) filter.date.$gte = new Date(startDate);
+    if (endDate) filter.date.$lte = new Date(endDate);
+    downloadName = `Glitci-txs-${startDate}-${endDate}.xlsx`;
+  }
+
+  // Fetch all matching without pagination
+  const transactions = await TransactionModel.find(filter)
+    .populate("project", "name")
+    .populate("client", "name companyName")
+    .populate({
+      path: "employee",
+      populate: { path: "user", select: "name email" },
+    })
+    .populate("addedBy", "name email")
+    .sort({ date: -1 })
+    .lean();
+
+  const workbook = generateTransactionsWorkbook(transactions);
+
+  // Format filename logic
+  const now = new Date();
+  const dateStr = now.toISOString().split("T")[0]; // YYYY-MM-DD
+  const hours = now.getHours();
+  const minutes = now.getMinutes().toString().padStart(2, "0");
+  const isPM = hours >= 12;
+  const displayHour = hours % 12 || 12;
+  const ampm = isPM ? "PM" : "AM";
+  if (!downloadName)
+    downloadName = `Glitci-txs-${dateStr}-${displayHour}꞉${minutes}${ampm}.xlsx`;
+
+  return { workbook, downloadName };
 }
 
 export async function getTransactionByIdService(id) {
