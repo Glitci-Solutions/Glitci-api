@@ -11,6 +11,34 @@ import {
 
 const { ObjectId } = mongoose.Types;
 
+// ================== HELPER: format grouped-by-currency arrays ==================
+
+function formatByCurrency(aggResult) {
+  return aggResult
+    .map((item) => ({
+      currency: item._id,
+      amount: item.total,
+    }))
+    .sort((a, b) => a.currency.localeCompare(b.currency));
+}
+
+/**
+ * Subtract two by-currency arrays: (a - b) per currency.
+ * If a currency exists in `b` but not `a`, it appears as negative.
+ */
+function subtractByCurrency(a, b) {
+  const map = {};
+  a.forEach((item) => {
+    map[item.currency] = (map[item.currency] || 0) + item.amount;
+  });
+  b.forEach((item) => {
+    map[item.currency] = (map[item.currency] || 0) - item.amount;
+  });
+  return Object.entries(map)
+    .map(([currency, amount]) => ({ currency, amount }))
+    .sort((a, b) => a.currency.localeCompare(b.currency));
+}
+
 // ================== PROJECT FINANCIALS ==================
 
 export async function getProjectFinancialsService(projectId) {
@@ -22,14 +50,8 @@ export async function getProjectFinancialsService(projectId) {
     throw new ApiError("Project not found", 404);
   }
 
-  const [
-    memberAgg,
-    transactionAgg,
-    employeePayments,
-    clientTransactions,
-    employeeTransactions,
-  ] = await Promise.all([
-    // Total compensation agreed for all members
+  const [memberAgg, transactionAgg, employeePayments] = await Promise.all([
+    // Total compensation grouped by currency
     ProjectMemberModel.aggregate([
       {
         $match: {
@@ -39,14 +61,14 @@ export async function getProjectFinancialsService(projectId) {
       },
       {
         $group: {
-          _id: null,
-          totalCompensation: { $sum: "$compensation" },
-          memberCount: { $sum: 1 },
+          _id: "$currency",
+          total: { $sum: "$compensation" },
+          count: { $sum: 1 },
         },
       },
     ]),
 
-    // Sum transactions by type
+    // Sum transactions by type AND currency
     TransactionModel.aggregate([
       {
         $match: {
@@ -56,14 +78,14 @@ export async function getProjectFinancialsService(projectId) {
       },
       {
         $group: {
-          _id: "$type",
+          _id: { type: "$type", currency: "$currency" },
           total: { $sum: "$amount" },
           count: { $sum: 1 },
         },
       },
     ]),
 
-    // Employee-specific payments
+    // Employee-specific payments grouped by currency
     TransactionModel.aggregate([
       {
         $match: {
@@ -80,119 +102,86 @@ export async function getProjectFinancialsService(projectId) {
       },
       {
         $group: {
-          _id: null,
-          totalPaid: { $sum: "$amount" },
+          _id: "$currency",
+          total: { $sum: "$amount" },
         },
       },
     ]),
-
-    // Client transactions (income) - full details
-    // TransactionModel.find({
-    //   project: projectId,
-    //   type: TRANSACTION_TYPE.INCOME,
-    //   status: TRANSACTION_STATUS.COMPLETED,
-    // })
-    //   .populate("client", "name companyName")
-    //   .populate("addedBy", "name email")
-    //   .sort({ date: -1 })
-    //   .lean(),
-
-    // // Employee transactions - full details
-    // TransactionModel.find({
-    //   project: projectId,
-    //   category: {
-    //     $in: [
-    //       TRANSACTION_CATEGORY.EMPLOYEE_SALARY,
-    //       TRANSACTION_CATEGORY.EMPLOYEE_BONUS,
-    //     ],
-    //   },
-    //   status: TRANSACTION_STATUS.COMPLETED,
-    // })
-    //   .populate("employee", "user")
-    //   .populate({
-    //     path: "employee",
-    //     populate: { path: "user", select: "name email" },
-    //   })
-    //   .populate("addedBy", "name email")
-    //   .sort({ date: -1 })
-    //   .lean(),
   ]);
 
-  const totalCompensation = memberAgg[0]?.totalCompensation || 0;
-  const memberCount = memberAgg[0]?.memberCount || 0;
-  const income =
-    transactionAgg.find((t) => t._id === TRANSACTION_TYPE.INCOME)?.total || 0;
-  const totalExpenses =
-    transactionAgg.find((t) => t._id === TRANSACTION_TYPE.EXPENSE)?.total || 0;
-  const totalPaidToEmployees = employeePayments[0]?.totalPaid || 0;
-  const otherExpenses = totalExpenses - totalPaidToEmployees;
+  // Employees count (sum across all currency groups)
+  const employeesCount = memberAgg.reduce((sum, g) => sum + g.count, 0);
 
-  // // Format transaction breakdowns - show ORIGINAL currency for each transaction
-  // const formattedClientTransactions = clientTransactions.map((t) => ({
-  //   id: t._id,
-  //   amount: t.amount,
-  //   currency: t.currency || "EGP", // Show original currency
-  //   date: t.date,
-  //   description: t.description,
-  //   category: t.category,
-  //   paymentMethod: t.paymentMethod,
-  //   reference: t.reference,
-  //   client: {
-  //     id: t.client?._id,
-  //     name: t.client?.name || t.client?.companyName,
-  //   },
-  //   addedBy: t.addedBy?.name,
-  // }));
+  // Compensation grouped by currency
+  const totalEmployeesCompensation = formatByCurrency(memberAgg);
 
-  // const formattedEmployeeTransactions = employeeTransactions.map((t) => ({
-  //   id: t._id,
-  //   amount: t.amount,
-  //   currency: t.currency || "EGP", // Show original currency
-  //   date: t.date,
-  //   description: t.description,
-  //   category: t.category,
-  //   paymentMethod: t.paymentMethod,
-  //   employee: {
-  //     id: t.employee?._id,
-  //     name: t.employee?.user?.name,
-  //     email: t.employee?.user?.email,
-  //   },
-  //   addedBy: t.addedBy?.name,
-  // }));
+  // Income grouped by currency
+  const incomeEntries = transactionAgg.filter(
+    (t) => t._id.type === TRANSACTION_TYPE.INCOME,
+  );
+  const moneyCollected = formatByCurrency(
+    incomeEntries.map((e) => ({ _id: e._id.currency, total: e.total })),
+  );
+
+  // Expenses grouped by currency
+  const expenseEntries = transactionAgg.filter(
+    (t) => t._id.type === TRANSACTION_TYPE.EXPENSE,
+  );
+  const totalExpenses = formatByCurrency(
+    expenseEntries.map((e) => ({ _id: e._id.currency, total: e.total })),
+  );
+
+  // Paid to employees grouped by currency
+  const paidToEmployees = formatByCurrency(employeePayments);
+
+  // Other expenses = total expenses - paid to employees (per currency)
+  const otherExpenses = subtractByCurrency(totalExpenses, paidToEmployees);
+
+  // Client balance due = budget - income collected (per budget currency)
+  const budgetCurrency = project.currency || "EGP";
+  const collectedInBudgetCurrency =
+    moneyCollected.find((m) => m.currency === budgetCurrency)?.amount || 0;
+  const clientBalanceDue = [
+    {
+      currency: budgetCurrency,
+      amount: project.budget - collectedInBudgetCurrency,
+    },
+    ...moneyCollected
+      .filter((m) => m.currency !== budgetCurrency)
+      .map((m) => ({ currency: m.currency, amount: -m.amount })),
+  ].filter((item) => item.amount !== 0);
+
+  // Employee balance due = compensation - paid (per currency)
+  const employeeBalanceDue = subtractByCurrency(
+    totalEmployeesCompensation,
+    paidToEmployees,
+  );
 
   return {
     project: {
       _id: project._id,
       name: project.name,
       budget: project.budget,
-      currency: project.currency || "EGP", // Show project's original currency
+      currency: budgetCurrency,
       client: project.client,
       status: project.status,
     },
     financials: {
       budget: project.budget,
-      budgetCurrency: project.currency || "EGP",
-      totalEmployeesCompensation: totalCompensation,
-      employeesCount: memberCount,
+      budgetCurrency,
+      totalEmployeesCompensation,
+      employeesCount,
 
-      // Actual money movement
-      moneyCollected: income,
+      // Actual money movement (grouped by currency)
+      moneyCollected,
       totalExpenses,
-      paidToEmployees: totalPaidToEmployees,
+      paidToEmployees,
       otherExpenses,
 
-      // Calculated balances
-      clientBalanceDue: project.budget - income,
-      employeeBalanceDue: totalCompensation - totalPaidToEmployees,
-
-      // Profit calculations
-      grossProfit: project.budget - totalCompensation - otherExpenses,
-      netProfitToDate: income - totalExpenses,
+      // Calculated balances (grouped by currency)
+      clientBalanceDue,
+      employeeBalanceDue,
     },
-    // transactions: {
-    //   clientTransactions: formattedClientTransactions,
-    //   employeeTransactions: formattedEmployeeTransactions,
-    // },
   };
 }
 
@@ -259,7 +248,29 @@ export async function getProjectEmployeeBreakdownService(projectId) {
   const breakdown = members.map((member) => {
     const empId = member.employee._id.toString();
     const payments = paymentsByEmployee[empId] || [];
-    const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+    const memberCurrency = member.currency || "EGP";
+
+    // Sum payments in the member's own currency only
+    const paidInMemberCurrency = payments
+      .filter((p) => p.currency === memberCurrency)
+      .reduce((sum, p) => sum + p.amount, 0);
+
+    // Payments in other currencies (show separately)
+    const paidInOtherCurrencies = payments
+      .filter((p) => p.currency !== memberCurrency)
+      .reduce((acc, p) => {
+        const existing = acc.find((a) => a.currency === p.currency);
+        if (existing) existing.amount += p.amount;
+        else acc.push({ currency: p.currency, amount: p.amount });
+        return acc;
+      }, []);
+
+    const paid = [
+      { currency: memberCurrency, amount: paidInMemberCurrency },
+      ...paidInOtherCurrencies,
+    ].filter((p) => p.amount > 0);
+
+    const remaining = member.compensation - paidInMemberCurrency;
 
     return {
       employee: {
@@ -269,13 +280,35 @@ export async function getProjectEmployeeBreakdownService(projectId) {
         position: member.employee.position?.name,
       },
       compensation: member.compensation,
-      currency: member.currency || "EGP",
-      paid: totalPaid,
-      remaining: member.compensation - totalPaid,
+      currency: memberCurrency,
+      paid,
+      remaining,
       paymentCount: payments.length,
-      payments, // Include all payment details
+      payments,
     };
   });
+
+  // Group summary totals by currency
+  const summaryMap = {};
+  breakdown.forEach((b) => {
+    if (!summaryMap[b.currency]) {
+      summaryMap[b.currency] = { compensation: 0, paid: 0, remaining: 0 };
+    }
+    summaryMap[b.currency].compensation += b.compensation;
+    summaryMap[b.currency].remaining += b.remaining;
+    // Sum paid in the member's own currency
+    const paidInOwn = b.paid.find((p) => p.currency === b.currency);
+    summaryMap[b.currency].paid += paidInOwn?.amount || 0;
+  });
+
+  const summaryByCurrency = Object.entries(summaryMap)
+    .map(([currency, vals]) => ({
+      currency,
+      totalCompensation: vals.compensation,
+      totalPaid: vals.paid,
+      totalRemaining: vals.remaining,
+    }))
+    .sort((a, b) => a.currency.localeCompare(b.currency));
 
   return {
     projectId,
@@ -284,9 +317,7 @@ export async function getProjectEmployeeBreakdownService(projectId) {
     breakdown,
     summary: {
       employeesCount: breakdown.length,
-      totalCompensation: breakdown.reduce((sum, b) => sum + b.compensation, 0),
-      totalPaid: breakdown.reduce((sum, b) => sum + b.paid, 0),
-      totalRemaining: breakdown.reduce((sum, b) => sum + b.remaining, 0),
+      byCurrency: summaryByCurrency,
     },
   };
 }
@@ -315,7 +346,7 @@ export async function getClientPaymentHistoryService(projectId) {
   const formattedPayments = payments.map((p) => ({
     id: p._id,
     amount: p.amount,
-    currency: p.currency || "EGP", // Show original currency
+    currency: p.currency || "EGP",
     date: p.date,
     description: p.description,
     paymentMethod: p.paymentMethod,
@@ -324,24 +355,44 @@ export async function getClientPaymentHistoryService(projectId) {
     addedBy: p.addedBy?.name,
   }));
 
-  const totalCollected = payments.reduce((sum, p) => sum + p.amount, 0);
+  // Group totalCollected by currency
+  const collectedMap = {};
+  payments.forEach((p) => {
+    const cur = p.currency || "EGP";
+    collectedMap[cur] = (collectedMap[cur] || 0) + p.amount;
+  });
+  const totalCollected = Object.entries(collectedMap)
+    .map(([currency, amount]) => ({ currency, amount }))
+    .sort((a, b) => a.currency.localeCompare(b.currency));
+
+  const budgetCurrency = project.currency || "EGP";
+  const collectedInBudgetCurrency =
+    totalCollected.find((c) => c.currency === budgetCurrency)?.amount || 0;
 
   return {
     project: {
       _id: project._id,
       name: project.name,
       budget: project.budget,
-      currency: project.currency || "EGP", // Show project's original currency
+      currency: budgetCurrency,
       client: project.client,
     },
     payments: formattedPayments,
     summary: {
       totalPayments: payments.length,
       totalCollected,
-      balanceDue: project.budget - totalCollected,
+      balanceDue: [
+        {
+          currency: budgetCurrency,
+          amount: project.budget - collectedInBudgetCurrency,
+        },
+        ...totalCollected
+          .filter((c) => c.currency !== budgetCurrency)
+          .map((c) => ({ currency: c.currency, amount: -c.amount })),
+      ].filter((item) => item.amount !== 0),
       percentagePaid:
         project.budget > 0
-          ? Math.round((totalCollected / project.budget) * 100)
+          ? Math.round((collectedInBudgetCurrency / project.budget) * 100)
           : 0,
     },
   };
