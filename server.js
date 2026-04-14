@@ -11,6 +11,7 @@ import { dbConnection } from "./src/config/dbConnection.js";
 import { globalError } from "./src/shared/middlewares/errorMiddleware.js";
 import { ApiError } from "./src/shared/utils/ApiError.js";
 import { mountRoutes } from "./src/app/routes.js";
+import { egyptTimezoneReplacer } from "./src/shared/utils/egyptTimezone.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,6 +22,9 @@ const PORT = process.env.PORT || 5000;
 
 // Trust proxy (for Vercel)
 app.set("trust proxy", 1);
+
+// Convert all UTC dates in JSON responses to Egypt timezone (Africa/Cairo)
+app.set("json replacer", egyptTimezoneReplacer);
 
 // Security
 app.use(helmet({ contentSecurityPolicy: false }));

@@ -21,14 +21,18 @@ import {
 } from "./auth.validator.js";
 import { protect } from "./auth.middleware.js";
 import { uploadSingleImage } from "../../shared/middlewares/uploadMiddleware.js";
+import {
+  loginRateLimiter,
+  forgotPasswordRateLimiter,
+} from "../../shared/middlewares/rateLimitMiddleware.js";
 
 const router = Router();
 
 // Public routes
 // router.post("/signup", uploadSingleImage("image"), registerValidator, register);
-router.post("/login", loginValidator, login);
+router.post("/login", loginRateLimiter, loginValidator, login);
 router.post("/refresh", refreshAccessToken);
-router.post("/forgot-password", forgotPasswordValidator, forgotPassword);
+router.post("/forgot-password", forgotPasswordRateLimiter, forgotPasswordValidator, forgotPassword);
 router.post("/verify-reset-code", verifyResetCodeValidator, verifyResetCode);
 router.post("/reset-password", resetPasswordValidator, resetPassword);
 
