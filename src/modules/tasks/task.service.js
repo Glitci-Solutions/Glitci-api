@@ -2,8 +2,11 @@
 import { TaskModel } from "./task.model.js";
 import { EmployeeModel } from "../employees/employee.model.js";
 import { ProjectModel } from "../projects/project.model.js";
+import { UserModel } from "../users/user.model.js";
 import { ApiError } from "../../shared/utils/ApiError.js";
 import { buildPagination } from "../../shared/utils/apiFeatures.js";
+import sendEmail from "../../shared/Email/sendEmails.js";
+import { taskCompletedEmailHTML } from "../../shared/Email/emailHtml.js";
 import { USER_ROLES } from "../../shared/constants/userRoles.enums.js";
 import {
   TASK_STATUS,
@@ -14,6 +17,24 @@ import {
 // ─── Helpers ───────────────────────────────────────────────
 
 const ADMIN_ROLES = [USER_ROLES.ADMIN, USER_ROLES.OPERATION];
+
+/**
+ * Which roles should receive email when a task is completed by an employee.
+ * Change this array to control who gets notified:
+ *   - [USER_ROLES.ADMIN]                         → admin only
+ *   - [USER_ROLES.OPERATION]                      → operation only
+ *   - [USER_ROLES.ADMIN, USER_ROLES.OPERATION]    → both (default)
+ */
+const TASK_COMPLETED_NOTIFY_ROLES = [USER_ROLES.ADMIN, USER_ROLES.OPERATION];
+
+/** Format a Date to a readable string for emails. */
+function formatDateTime(date) {
+  return new Date(date).toLocaleString("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "Africa/Cairo",
+  });
+}
 
 function isAdminOrOp(user) {
   return ADMIN_ROLES.includes(user.role);
@@ -102,6 +123,51 @@ const populateOptions = [
   { path: "createdBy", select: "name" },
   { path: "history.changedBy", select: "name role" },
 ];
+
+/**
+ * Send "task completed" email to users whose role is in TASK_COMPLETED_NOTIFY_ROLES.
+ * Called fire-and-forget — failures are logged, never thrown.
+ */
+async function notifyTaskCompleted(task) {
+  const assignedTo = task.assignedTo || {};
+  const assignedUser = assignedTo.user || {};
+  const department = assignedTo.department || {};
+  const project = task.project || null;
+
+  const recipients = await UserModel.find({
+    role: { $in: TASK_COMPLETED_NOTIFY_ROLES },
+    isActive: true,
+  }).select("name email");
+
+  if (recipients.length === 0) return;
+
+  const emailData = {
+    employeeName: assignedUser.name || "Unknown",
+    departmentName: department.name || "N/A",
+    taskName: task.name,
+    projectName: project?.name || null,
+    startTime: formatDateTime(task.startTime),
+    endTime: formatDateTime(task.endTime),
+    completedAt: formatDateTime(new Date()),
+  };
+
+  const emailPromises = recipients.map((recipient) => {
+    const firstName = (recipient.name || "").split(" ")[0] || "there";
+    const capitalizedName =
+      firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
+
+    return sendEmail({
+      email: recipient.email,
+      subject: `Task Completed: ${task.name}`,
+      message: taskCompletedEmailHTML({
+        ...emailData,
+        recipientName: capitalizedName,
+      }),
+    });
+  });
+
+  await Promise.allSettled(emailPromises);
+}
 
 // ─── Create Tasks (bulk) ───────────────────────────────────
 
@@ -306,6 +372,14 @@ export async function updateTaskStatusService(taskId, newStatus, currentUser) {
 
   // Return fresh populated task
   const updated = await TaskModel.findById(taskId).populate(populateOptions);
+
+  // Send email notification when an employee completes a task (fire-and-forget)
+  if (newStatus === TASK_STATUS.COMPLETED && !isAdminOrOp(currentUser)) {
+    notifyTaskCompleted(updated).catch((err) =>
+      console.error("Failed to send task-completed email:", err.message),
+    );
+  }
+
   return buildTaskResponse(updated);
 }
 
