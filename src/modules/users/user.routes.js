@@ -30,10 +30,6 @@ const router = Router();
 router.get("/me", protect, getMe);
 router.patch(
   "/me",
-  (req, res, next) => {
-    console.log(req.body);
-    next();
-  },
   protect,
   uploadSingleImage("image"),
   updateMeValidator,
