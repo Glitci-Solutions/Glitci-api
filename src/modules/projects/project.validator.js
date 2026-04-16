@@ -208,6 +208,8 @@ export const listProjectsValidator = [
     .isMongoId()
     .withMessage("Invalid department ID"),
 
+  query("employee").optional().isMongoId().withMessage("Invalid employee ID"),
+
   query("isActive")
     .optional()
     .isBoolean()

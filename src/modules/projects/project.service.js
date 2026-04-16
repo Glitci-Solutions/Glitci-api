@@ -121,6 +121,7 @@ export async function getProjectsService(query) {
     priority,
     client,
     department,
+    employee,
     isActive = true,
     search,
   } = query;
@@ -135,6 +136,16 @@ export async function getProjectsService(query) {
   if (normalizedPriority) filter.priority = normalizedPriority;
   if (client) filter.client = client;
   if (department) filter.department = department;
+
+  // Filter by employee — find projects where this employee is an active member
+  if (employee) {
+    const memberRecords = await ProjectMemberModel.find(
+      { employee, removedAt: null },
+      "project",
+    ).lean();
+    const projectIds = memberRecords.map((m) => m.project);
+    filter._id = { $in: projectIds };
+  }
   if (search) {
     filter.$or = [
       { name: { $regex: search, $options: "i" } },
