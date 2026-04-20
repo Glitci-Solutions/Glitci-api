@@ -33,7 +33,7 @@ function clearRefreshTokenCookie(res) {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     // sameSite: "strict",
-    sameSite: "strict",
+    sameSite: "none",
     // secure: true,
   });
 }
