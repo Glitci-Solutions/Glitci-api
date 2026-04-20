@@ -18,6 +18,8 @@ export const protect = asyncHandler(async (req, res, next) => {
     return next(new ApiError("Not authorized, no token provided", 401));
   }
 
+  console.log("token", token);
+
   try {
     const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
 
@@ -35,11 +37,11 @@ export const protect = asyncHandler(async (req, res, next) => {
     if (user.passwordChangedAt) {
       const changedTimestamp = parseInt(
         user.passwordChangedAt.getTime() / 1000,
-        10
+        10,
       );
       if (decoded.iat < changedTimestamp) {
         return next(
-          new ApiError("Password was changed, please login again", 401)
+          new ApiError("Password was changed, please login again", 401),
         );
       }
     }
@@ -48,7 +50,7 @@ export const protect = asyncHandler(async (req, res, next) => {
     next();
   } catch (err) {
     return next(
-      new ApiError("Invalid or expired token, please login again", 401)
+      new ApiError("Invalid or expired token, please login again", 401),
     );
   }
 });
@@ -58,7 +60,7 @@ export const allowedTo = (...roles) => {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {
       return next(
-        new ApiError("You are not authorized to access this resource", 403)
+        new ApiError("You are not authorized to access this resource", 403),
       );
     }
     next();

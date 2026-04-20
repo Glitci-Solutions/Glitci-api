@@ -159,6 +159,7 @@ export async function loginService({ email, password }) {
 
   const { accessToken, refreshToken, accessTokenExpires } =
     await issueSessionTokensForUser(user);
+  console.log("refreshToken", refreshToken);
 
   return {
     user,
