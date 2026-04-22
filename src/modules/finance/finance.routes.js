@@ -3,6 +3,7 @@ import {
   getProjectFinancials,
   getProjectEmployeeBreakdown,
   getClientPaymentHistory,
+  getProjectOtherExpensesBreakdown,
 } from "./finance.controller.js";
 import { protect, allowedTo } from "../auth/auth.middleware.js";
 import { projectIdValidator } from "./finance.validator.js";
@@ -34,6 +35,14 @@ router.get(
   allowedTo(USER_ROLES.ADMIN, USER_ROLES.MANAGER),
   projectIdValidator,
   getClientPaymentHistory,
+);
+
+// Project other expenses breakdown
+router.get(
+  "/project/:projectId/expenses/other",
+  allowedTo(USER_ROLES.ADMIN, USER_ROLES.MANAGER),
+  projectIdValidator,
+  getProjectOtherExpensesBreakdown,
 );
 
 export default router;
