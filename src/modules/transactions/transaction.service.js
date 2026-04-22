@@ -373,7 +373,7 @@ export async function createEmployeePaymentService(payload, userId) {
     paymentMethod,
     reference,
   } = payload;
-
+  console.log("payload", payload);
   // Validate employee exists
   const employeeDoc = await EmployeeModel.findById(employee).populate("user");
   if (!employeeDoc || !employeeDoc.user?.isActive) {
