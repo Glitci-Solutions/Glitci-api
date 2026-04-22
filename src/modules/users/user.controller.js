@@ -71,7 +71,6 @@ export const getMe = asyncHandler(async (req, res) => {
 
 // PATCH /users/me
 export const updateMe = asyncHandler(async (req, res) => {
-  console.log(req.body);
   const { name, email, phone, skills, currency } = req.body;
 
   const user = await updateMeService({

@@ -32,7 +32,6 @@ export const createEmployee = asyncHandler(async (req, res) => {
 
 // PATCH /employees/:id - Update employee
 export const updateEmployee = asyncHandler(async (req, res) => {
-  console.log("update employee body", req.body);
   await updateEmployeeService(req.params.id, req.body);
   res.status(200).json({ message: "Employee updated successfully" });
 });

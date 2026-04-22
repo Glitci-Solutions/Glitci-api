@@ -18,8 +18,6 @@ export const protect = asyncHandler(async (req, res, next) => {
     return next(new ApiError("Not authorized, no token provided", 401));
   }
 
-  console.log("token", token);
-
   try {
     const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
 
