@@ -180,18 +180,58 @@ export async function getProjectsService(query) {
     countMap[ec._id.toString()] = ec.count;
   });
 
+  // If queried by employee, fetch full employee details for the matched projects
+  const employeeMap = {};
+  if (employee) {
+    const allMembers = await ProjectMemberModel.find({
+      project: { $in: projectIds },
+      employee,
+      removedAt: null,
+    })
+      .populate({
+        path: "employee",
+        select: "employmentType user position",
+        populate: [
+          { path: "user", select: "name email phone" },
+          { path: "position", select: "name" },
+        ],
+      })
+      .lean();
+
+    allMembers.forEach((member) => {
+      const pid = member.project.toString();
+      if (!employeeMap[pid]) employeeMap[pid] = [];
+      employeeMap[pid].push({
+        id: member.employee?._id,
+        name: member.employee?.user?.name || null,
+        position: member.employee?.position?.name || null,
+        employmentType: member.employee?.employmentType || null,
+        compensation: member.compensation,
+        currency: member.currency,
+      });
+    });
+  }
+
   // Transform to UI-friendly format
-  const data = projects.map((project) => ({
-    id: project._id,
-    name: project.name,
-    client: project.client?.name || null,
-    currency: project.currency,
-    startDate: project.startDate,
-    endDate: project.endDate,
-    status: project.status,
-    priority: project.priority,
-    employeeCount: countMap[project._id.toString()] || 0,
-  }));
+  const data = projects.map((project) => {
+    const projectData = {
+      id: project._id,
+      name: project.name,
+      client: project.client?.name || null,
+      currency: project.currency,
+      startDate: project.startDate,
+      endDate: project.endDate,
+      status: project.status,
+      priority: project.priority,
+      employeeCount: countMap[project._id.toString()] || 0,
+    };
+
+    if (employee) {
+      projectData.employees = employeeMap[project._id.toString()] || [];
+    }
+
+    return projectData;
+  });
 
   return {
     totalPages: Math.ceil(total / limit),
