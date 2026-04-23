@@ -12,6 +12,13 @@ import {
   PROJECT_STATUS,
   PROJECT_PRIORITY,
 } from "../../shared/constants/project.enums.js";
+import { USER_ROLES } from "../../shared/constants/userRoles.enums.js";
+
+const ADMIN_ROLES = [USER_ROLES.ADMIN, USER_ROLES.OPERATION];
+
+function isAdminOrOp(user) {
+  return ADMIN_ROLES.includes(user.role);
+}
 
 // ================== PROJECT CRUD ==================
 
@@ -113,7 +120,7 @@ export async function createProjectService(payload, userId) {
   return { message: "Project created successfully", id: project._id };
 }
 
-export async function getProjectsService(query) {
+export async function getProjectsService(query, currentUser) {
   const {
     page = 1,
     limit = 10,
@@ -138,7 +145,19 @@ export async function getProjectsService(query) {
   if (department) filter.department = department;
 
   // Filter by employee — find projects where this employee is an active member
-  if (employee) {
+  if (!isAdminOrOp(currentUser)) {
+    const employeeProfile = await EmployeeModel.findOne({ user: currentUser._id }).select("_id").lean();
+    if (employeeProfile) {
+      const memberRecords = await ProjectMemberModel.find(
+        { employee: employeeProfile._id, removedAt: null },
+        "project",
+      ).lean();
+      const projectIds = memberRecords.map((m) => m.project);
+      filter._id = { $in: projectIds };
+    } else {
+      filter._id = { $in: [] };
+    }
+  } else if (employee) {
     const memberRecords = await ProjectMemberModel.find(
       { employee, removedAt: null },
       "project",
@@ -242,7 +261,7 @@ export async function getProjectsService(query) {
   };
 }
 
-export async function getProjectByIdService(id) {
+export async function getProjectByIdService(id, currentUser) {
   // Run both queries in parallel
   const [project, members] = await Promise.all([
     ProjectModel.findById(id)
@@ -269,6 +288,18 @@ export async function getProjectByIdService(id) {
 
   if (!project) {
     throw new ApiError("Project not found", 404);
+  }
+
+  // Authorization check for employees
+  if (!isAdminOrOp(currentUser)) {
+    const employeeProfile = await EmployeeModel.findOne({ user: currentUser._id }).select("_id").lean();
+    if (!employeeProfile) {
+      throw new ApiError("You do not have access to this project", 403);
+    }
+    const isMember = members.some((m) => m.employee?._id?.toString() === employeeProfile._id.toString());
+    if (!isMember) {
+      throw new ApiError("You do not have access to this project", 403);
+    }
   }
 
   // Transform to clean employees array

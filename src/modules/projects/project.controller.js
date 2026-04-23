@@ -14,12 +14,12 @@ export const createProject = asyncHandler(async (req, res) => {
 });
 
 export const getProjects = asyncHandler(async (req, res) => {
-  const result = await getProjectsService(req.query);
+  const result = await getProjectsService(req.query, req.user);
   res.json(result);
 });
 
 export const getProject = asyncHandler(async (req, res) => {
-  const project = await getProjectByIdService(req.params.id);
+  const project = await getProjectByIdService(req.params.id, req.user);
   res.json({ data: project });
 });
 
