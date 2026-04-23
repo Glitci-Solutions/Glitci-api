@@ -4,6 +4,8 @@ import {
   getTasksService,
   updateTaskStatusService,
   getTaskAnalyticsService,
+  updateTaskService,
+  deleteTaskService,
 } from "./task.service.js";
 
 // POST /tasks — Create task(s) (bulk, accepts array)
@@ -33,6 +35,18 @@ export const updateTaskStatus = asyncHandler(async (req, res) => {
 
 // GET /tasks/analytics/summary — Task analytics
 export const getTaskAnalytics = asyncHandler(async (req, res) => {
-  const analytics = await getTaskAnalyticsService(req.query);
+  const analytics = await getTaskAnalyticsService(req.query, req.user);
   res.status(200).json({ data: analytics });
+});
+
+// PATCH /tasks/:id — Update task details
+export const updateTask = asyncHandler(async (req, res) => {
+  const task = await updateTaskService(req.params.id, req.body, req.user);
+  res.status(200).json({ message: "Task updated successfully", data: task });
+});
+
+// DELETE /tasks/:id — Delete task
+export const deleteTask = asyncHandler(async (req, res) => {
+  await deleteTaskService(req.params.id);
+  res.status(200).json({ message: "Task deleted successfully" });
 });

@@ -165,3 +165,38 @@ export const taskAnalyticsValidator = [
 
   validatorMiddleware,
 ];
+
+export const updateTaskValidator = [
+  param("id").isMongoId().withMessage("Invalid task ID"),
+  check("name")
+    .optional()
+    .isLength({ min: 2, max: 200 })
+    .withMessage("Task name must be between 2 and 200 characters"),
+  check("description")
+    .optional()
+    .isLength({ max: 2000 })
+    .withMessage("Description cannot exceed 2000 characters"),
+  check("startTime")
+    .optional()
+    .isISO8601()
+    .withMessage("Start time must be a valid ISO 8601 date"),
+  check("endTime")
+    .optional()
+    .isISO8601()
+    .withMessage("End time must be a valid ISO 8601 date")
+    .custom((value, { req }) => {
+      if (req.body.startTime && new Date(value) <= new Date(req.body.startTime)) {
+        throw new Error("End time must be after start time");
+      }
+      return true;
+    }),
+  check("assignedTo").optional().isMongoId().withMessage("Invalid employee ID"),
+  check("project").optional().isMongoId().withMessage("Invalid project ID"),
+  check("link").optional().isURL().withMessage("Link must be a valid URL"),
+  validatorMiddleware,
+];
+
+export const deleteTaskValidator = [
+  param("id").isMongoId().withMessage("Invalid task ID"),
+  validatorMiddleware,
+];

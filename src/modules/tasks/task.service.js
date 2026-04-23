@@ -97,13 +97,16 @@ function buildTaskResponse(task) {
       id: createdBy._id || createdBy,
       name: createdBy.name || null,
     },
-    history: (task.history || []).map((h) => ({
-      status: h.status,
-      changedAt: h.changedAt,
-      changedBy: h.changedBy?._id || h.changedBy,
-      changedByName: `${h.changedBy?.role}: ${h.changedBy?.name}` || null,
-      description: h.description,
-    })),
+    history: (task.history || [])
+      .slice()
+      .sort((a, b) => new Date(b.changedAt) - new Date(a.changedAt))
+      .map((h) => ({
+        status: h.status,
+        changedAt: h.changedAt,
+        changedBy: h.changedBy?._id || h.changedBy,
+        changedByName: `${h.changedBy?.role}: ${h.changedBy?.name}` || null,
+        description: h.description,
+      })),
     createdAt: task.createdAt,
     updatedAt: task.updatedAt,
   };
@@ -385,12 +388,18 @@ export async function updateTaskStatusService(taskId, newStatus, currentUser) {
 
 // ─── Analytics ─────────────────────────────────────────────
 
-export async function getTaskAnalyticsService(queryParams) {
+export async function getTaskAnalyticsService(queryParams, currentUser) {
   const { employee, project, startDate, endDate } = queryParams;
 
   const matchStage = {};
 
-  if (employee) matchStage.assignedTo = employee;
+  if (!isAdminOrOp(currentUser)) {
+    const employeeId = await resolveEmployeeId(currentUser._id);
+    matchStage.assignedTo = employeeId;
+  } else {
+    if (employee) matchStage.assignedTo = employee;
+  }
+
   if (project) matchStage.project = project;
 
   const effectiveStartDate = startDate || getTodayDateString();
@@ -477,4 +486,73 @@ export async function getTaskAnalyticsService(queryParams) {
     }),
     tasks: tasks.map(buildTaskResponse),
   };
+}
+
+// ─── Update Task (Admin/Operation) ─────────────────────────
+
+export async function updateTaskService(taskId, updateData, currentUser) {
+  const task = await TaskModel.findById(taskId);
+
+  if (!task) {
+    throw new ApiError("Task not found", 404);
+  }
+
+  // Prevent status updates through this endpoint
+  delete updateData.status;
+
+  // Ensure employee exists if reassigned
+  if (
+    updateData.assignedTo &&
+    updateData.assignedTo !== task.assignedTo.toString()
+  ) {
+    const employeeExists = await EmployeeModel.exists({
+      _id: updateData.assignedTo,
+    });
+    if (!employeeExists) throw new ApiError("Employee not found", 400);
+  }
+
+  // Ensure project exists if changed
+  if (updateData.project && updateData.project !== task.project?.toString()) {
+    const projectExists = await ProjectModel.exists({
+      _id: updateData.project,
+    });
+    if (!projectExists) throw new ApiError("Project not found", 400);
+  }
+
+  // Validate dates if only one is provided
+  if (updateData.startTime || updateData.endTime) {
+    const start = updateData.startTime
+      ? new Date(updateData.startTime)
+      : task.startTime;
+    const end = updateData.endTime
+      ? new Date(updateData.endTime)
+      : task.endTime;
+    if (end <= start) {
+      throw new ApiError("End time must be after start time", 400);
+    }
+  }
+
+  Object.assign(task, updateData);
+
+  task.history.push({
+    status: task.status,
+    changedBy: currentUser._id,
+    changedAt: new Date(),
+    description: `Task details updated by ${currentUser.role}: ${currentUser.name}`,
+  });
+
+  await task.save();
+
+  const updated = await TaskModel.findById(taskId).populate(populateOptions);
+  return buildTaskResponse(updated);
+}
+
+// ─── Delete Task (Admin/Operation) ─────────────────────────
+
+export async function deleteTaskService(taskId) {
+  const task = await TaskModel.findByIdAndDelete(taskId);
+  if (!task) {
+    throw new ApiError("Task not found", 404);
+  }
+  return true;
 }
