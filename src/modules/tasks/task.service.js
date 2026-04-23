@@ -319,17 +319,14 @@ export async function updateTaskStatusService(taskId, newStatus, currentUser) {
   const currentIndex = TASK_STATUS_ORDER.indexOf(currentStatus);
   const newIndex = TASK_STATUS_ORDER.indexOf(newStatus);
 
-  // Never allow backward transitions for anyone
-  if (newIndex <= currentIndex) {
-    throw new ApiError(
-      `Cannot transition from "${currentStatus}" to "${newStatus}". Only forward transitions are allowed`,
-      400,
-    );
-  }
-
   if (isAdminOrOp(currentUser)) {
-    // Admin/Op: any forward jump is allowed (including "postponed")
-    // — already validated above (newIndex > currentIndex)
+    // Admin/Op: allow forward transitions, and allow any transition FROM postponed.
+    if (currentStatus !== TASK_STATUS.POSTPONED && newIndex <= currentIndex) {
+      throw new ApiError(
+        `Cannot transition from "${currentStatus}" to "${newStatus}". Only forward transitions are allowed`,
+        400,
+      );
+    }
   } else {
     // Employee: strict sequential, no "postponed"
     // 1. Verify ownership
@@ -346,7 +343,15 @@ export async function updateTaskStatusService(taskId, newStatus, currentUser) {
       );
     }
 
-    // 3. Must be the next step in the employee flow
+    // 3. If it's already postponed, employee cannot change it
+    if (currentStatus === TASK_STATUS.POSTPONED) {
+      throw new ApiError(
+        "This task is postponed. Only an admin or operation user can reactivate it.",
+        403,
+      );
+    }
+
+    // 4. Must be the next step in the employee flow
     const employeeCurrentIndex = EMPLOYEE_STATUS_FLOW.indexOf(currentStatus);
     const employeeNewIndex = EMPLOYEE_STATUS_FLOW.indexOf(newStatus);
 
