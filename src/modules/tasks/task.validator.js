@@ -45,10 +45,20 @@ const projectRule = check("project")
   .isMongoId()
   .withMessage("Invalid project ID");
 
-const linkRule = check("link")
+const linksRule = check("links")
   .optional()
+  .isArray()
+  .withMessage("Links must be an array");
+
+const linksNameRule = check("links.*.name")
+  .notEmpty()
+  .withMessage("Link name is required");
+
+const linksUrlRule = check("links.*.url")
+  .notEmpty()
+  .withMessage("Link URL is required")
   .isURL()
-  .withMessage("Link must be a valid URL");
+  .withMessage("Link URL must be a valid URL");
 
 // --- Bulk create: validate array of tasks ---
 
@@ -90,10 +100,20 @@ const bulkProjectRule = check("tasks.*.project")
   .isMongoId()
   .withMessage("Invalid project ID");
 
-const bulkLinkRule = check("tasks.*.link")
+const bulkLinksRule = check("tasks.*.links")
   .optional()
+  .isArray()
+  .withMessage("Links must be an array");
+
+const bulkLinksNameRule = check("tasks.*.links.*.name")
+  .notEmpty()
+  .withMessage("Link name is required");
+
+const bulkLinksUrlRule = check("tasks.*.links.*.url")
+  .notEmpty()
+  .withMessage("Link URL is required")
   .isURL()
-  .withMessage("Link must be a valid URL");
+  .withMessage("Link URL must be a valid URL");
 
 // --- Validators ---
 
@@ -105,7 +125,9 @@ export const createTaskValidator = [
   bulkEndTimeRule,
   bulkAssignedToRule,
   bulkProjectRule,
-  bulkLinkRule,
+  bulkLinksRule,
+  bulkLinksNameRule,
+  bulkLinksUrlRule,
   validatorMiddleware,
 ];
 
@@ -192,7 +214,9 @@ export const updateTaskValidator = [
     }),
   check("assignedTo").optional().isMongoId().withMessage("Invalid employee ID"),
   check("project").optional().isMongoId().withMessage("Invalid project ID"),
-  check("link").optional().isURL().withMessage("Link must be a valid URL"),
+  linksRule,
+  linksNameRule,
+  linksUrlRule,
   validatorMiddleware,
 ];
 

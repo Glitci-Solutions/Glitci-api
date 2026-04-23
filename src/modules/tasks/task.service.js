@@ -71,7 +71,7 @@ function buildTaskResponse(task) {
     description: task.description,
     startTime: task.startTime,
     endTime: task.endTime,
-    link: task.link,
+    links: (task.links || []).map((l) => ({ name: l.name, url: l.url })),
     status: task.status,
     assignedTo: {
       id: assignedTo._id || assignedTo,
@@ -214,7 +214,7 @@ export async function createTasksService(tasks, creatorUserId) {
     description: t.description || null,
     startTime: t.startTime,
     endTime: t.endTime,
-    link: t.link || null,
+    links: t.links || [],
     status: TASK_STATUS.PENDING,
     assignedTo: t.assignedTo,
     project: t.project || null,

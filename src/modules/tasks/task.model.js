@@ -49,11 +49,21 @@ const taskSchema = new mongoose.Schema(
       type: Date,
       required: [true, "End time is required"],
     },
-    link: {
-      type: String,
-      trim: true,
-      default: null,
-    },
+    links: [
+      {
+        name: {
+          type: String,
+          required: [true, "Link name is required"],
+          trim: true,
+        },
+        url: {
+          type: String,
+          required: [true, "Link URL is required"],
+          trim: true,
+        },
+        _id: false,
+      },
+    ],
     status: {
       type: String,
       enum: Object.values(TASK_STATUS),
