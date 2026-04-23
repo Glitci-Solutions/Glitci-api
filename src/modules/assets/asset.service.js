@@ -59,9 +59,12 @@ export async function createAssetService(data, creatorUserId) {
 
   // Validate project exists if provided
   if (data.project) {
-    const projectExists = await ProjectModel.exists({ _id: data.project });
-    if (!projectExists) {
+    const project = await ProjectModel.findById(data.project).select("client");
+    if (!project) {
       throw new ApiError("Project not found", 400);
+    }
+    if (data.client && project.client.toString() !== data.client.toString()) {
+      throw new ApiError("Project does not belong to that Client", 400);
     }
   }
 
@@ -157,10 +160,30 @@ export async function updateAssetService(assetId, updateData) {
 
   // Validate project exists if changed
   if (updateData.project && updateData.project !== asset.project?.toString()) {
-    const projectExists = await ProjectModel.exists({
-      _id: updateData.project,
-    });
-    if (!projectExists) throw new ApiError("Project not found", 400);
+    const project = await ProjectModel.findById(updateData.project).select(
+      "client",
+    );
+    if (!project) throw new ApiError("Project not found", 400);
+
+    const effectiveClient = updateData.client || asset.client;
+    if (
+      effectiveClient &&
+      project.client.toString() !== effectiveClient.toString()
+    ) {
+      throw new ApiError(
+        "Project does not belong to the specified client",
+        400,
+      );
+    }
+  } else if (updateData.client && asset.project) {
+    // Client changed, but project remained the same. Need to ensure the existing project belongs to the new client.
+    const project = await ProjectModel.findById(asset.project).select("client");
+    if (project && project.client.toString() !== updateData.client.toString()) {
+      throw new ApiError(
+        "Current project does not belong to the new specified client",
+        400,
+      );
+    }
   }
 
   Object.assign(asset, updateData);
