@@ -359,7 +359,7 @@ export const accountCreatedEmailHTML = (name, email, tempPassword) => {
   `;
 };
 
-export const taskCompletedEmailHTML = ({
+export const taskInReviewEmailHTML = ({
   recipientName,
   employeeName,
   departmentName,
@@ -367,7 +367,7 @@ export const taskCompletedEmailHTML = ({
   projectName,
   startTime,
   endTime,
-  completedAt,
+  submittedAt,
 }) => {
   const projectRow = projectName
     ? `<tr>
@@ -380,8 +380,8 @@ export const taskCompletedEmailHTML = ({
   <html lang="en-US">
     <head>
       <meta content="text/html; charset=utf-8" http-equiv="Content-Type" />
-      <title>Task Completed</title>
-      <meta name="description" content="Task Completed Notification" />
+      <title>Task Submitted for Review</title>
+      <meta name="description" content="Task In Review Notification" />
       <style type="text/css">
         a:hover {
           text-decoration: underline !important;
@@ -469,7 +469,7 @@ export const taskCompletedEmailHTML = ({
                             font-family: 'Rubik', sans-serif;
                           "
                         >
-                          Task Completed &#x2705;
+                          Task Submitted for Review &#x1F50D;
                         </h1>
                         <span
                           style="
@@ -490,7 +490,7 @@ export const taskCompletedEmailHTML = ({
                           "
                         >
                           Hello ${recipientName},<br/>
-                          A task has been marked as <strong style="color: rgb(34, 139, 34);">completed</strong> by <strong>${employeeName}</strong>.
+                          A task has been submitted for <strong style="color: rgb(30, 100, 200);">review</strong> by <strong>${employeeName}</strong>.
                         </p>
                         <table
                           style="
@@ -522,8 +522,8 @@ export const taskCompletedEmailHTML = ({
                             <td style="padding: 10px; color: #455056; font-size: 15px;">${endTime}</td>
                           </tr>
                           <tr>
-                            <td style="padding: 10px; color: #455056; font-size: 15px; font-weight: 600;">Completed At:</td>
-                            <td style="padding: 10px; color: rgb(34, 139, 34); font-size: 15px; font-weight: 500;">${completedAt}</td>
+                            <td style="padding: 10px; color: #455056; font-size: 15px; font-weight: 600;">Submitted At:</td>
+                            <td style="padding: 10px; color: rgb(30, 100, 200); font-size: 15px; font-weight: 500;">${submittedAt}</td>
                           </tr>
                         </table>
                       </td>

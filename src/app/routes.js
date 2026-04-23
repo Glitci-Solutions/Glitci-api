@@ -12,6 +12,7 @@ import transactionRoutes from "../modules/transactions/transaction.routes.js";
 import financeRoutes from "../modules/finance/finance.routes.js";
 import analyticsRoutes from "../modules/analytics/analytics.routes.js";
 import taskRoutes from "../modules/tasks/task.routes.js";
+import assetRoutes from "../modules/assets/asset.routes.js";
 
 export function mountRoutes(app) {
   app.use("/api/v1/auth", authRoutes);
@@ -27,4 +28,5 @@ export function mountRoutes(app) {
   app.use("/api/v1/finance", financeRoutes);
   app.use("/api/v1/analytics", analyticsRoutes);
   app.use("/api/v1/tasks", taskRoutes);
+  app.use("/api/v1/assets", assetRoutes);
 }

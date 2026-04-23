@@ -6,11 +6,10 @@ import { UserModel } from "../users/user.model.js";
 import { ApiError } from "../../shared/utils/ApiError.js";
 import { buildPagination } from "../../shared/utils/apiFeatures.js";
 import sendEmail from "../../shared/Email/sendEmails.js";
-import { taskCompletedEmailHTML } from "../../shared/Email/emailHtml.js";
+import { taskInReviewEmailHTML } from "../../shared/Email/emailHtml.js";
 import { USER_ROLES } from "../../shared/constants/userRoles.enums.js";
 import {
   TASK_STATUS,
-  TASK_STATUS_ORDER,
   EMPLOYEE_STATUS_FLOW,
 } from "../../shared/constants/task.enums.js";
 
@@ -19,13 +18,13 @@ import {
 const ADMIN_ROLES = [USER_ROLES.ADMIN, USER_ROLES.OPERATION];
 
 /**
- * Which roles should receive email when a task is completed by an employee.
+ * Which roles should receive email when a task is submitted for review.
  * Change this array to control who gets notified:
  *   - [USER_ROLES.ADMIN]                         → admin only
  *   - [USER_ROLES.OPERATION]                      → operation only
  *   - [USER_ROLES.ADMIN, USER_ROLES.OPERATION]    → both (default)
  */
-const TASK_COMPLETED_NOTIFY_ROLES = [USER_ROLES.ADMIN, USER_ROLES.OPERATION];
+const TASK_REVIEW_NOTIFY_ROLES = [USER_ROLES.ADMIN, USER_ROLES.OPERATION];
 
 /** Format a Date to a readable string for emails. */
 function formatDateTime(date) {
@@ -128,17 +127,17 @@ const populateOptions = [
 ];
 
 /**
- * Send "task completed" email to users whose role is in TASK_COMPLETED_NOTIFY_ROLES.
+ * Send "task in review" email to users whose role is in TASK_REVIEW_NOTIFY_ROLES.
  * Called fire-and-forget — failures are logged, never thrown.
  */
-async function notifyTaskCompleted(task) {
+async function notifyTaskInReview(task) {
   const assignedTo = task.assignedTo || {};
   const assignedUser = assignedTo.user || {};
   const department = assignedTo.department || {};
   const project = task.project || null;
 
   const recipients = await UserModel.find({
-    role: { $in: TASK_COMPLETED_NOTIFY_ROLES },
+    role: { $in: TASK_REVIEW_NOTIFY_ROLES },
     isActive: true,
   }).select("name email");
 
@@ -151,7 +150,7 @@ async function notifyTaskCompleted(task) {
     projectName: project?.name || null,
     startTime: formatDateTime(task.startTime),
     endTime: formatDateTime(task.endTime),
-    completedAt: formatDateTime(new Date()),
+    submittedAt: formatDateTime(new Date()),
   };
 
   const emailPromises = recipients.map((recipient) => {
@@ -161,8 +160,8 @@ async function notifyTaskCompleted(task) {
 
     return sendEmail({
       email: recipient.email,
-      subject: `Task Completed: ${task.name}`,
-      message: taskCompletedEmailHTML({
+      subject: `Task Submitted for Review: ${task.name}`,
+      message: taskInReviewEmailHTML({
         ...emailData,
         recipientName: capitalizedName,
       }),
@@ -316,29 +315,28 @@ export async function updateTaskStatusService(taskId, newStatus, currentUser) {
     throw new ApiError(`Task is already "${newStatus}"`, 400);
   }
 
-  const currentIndex = TASK_STATUS_ORDER.indexOf(currentStatus);
-  const newIndex = TASK_STATUS_ORDER.indexOf(newStatus);
 
   if (isAdminOrOp(currentUser)) {
-    // Admin/Op: allow forward transitions, and allow any transition FROM postponed.
-    if (currentStatus !== TASK_STATUS.POSTPONED && newIndex <= currentIndex) {
-      throw new ApiError(
-        `Cannot transition from "${currentStatus}" to "${newStatus}". Only forward transitions are allowed`,
-        400,
-      );
-    }
+    // Admin/Op: can switch between any statuses freely
   } else {
-    // Employee: strict sequential, no "postponed"
+    // Employee: strict sequential flow (pending → in progress → in review)
     // 1. Verify ownership
     const employeeId = await resolveEmployeeId(currentUser._id);
     if (task.assignedTo._id.toString() !== employeeId.toString()) {
       throw new ApiError("You are not authorized to update this task", 403);
     }
 
-    // 2. Cannot set "postponed"
+    // 2. Cannot set "postponed" or "completed"
     if (newStatus === TASK_STATUS.POSTPONED) {
       throw new ApiError(
         "Only admin or operation users can postpone tasks",
+        403,
+      );
+    }
+
+    if (newStatus === TASK_STATUS.COMPLETED) {
+      throw new ApiError(
+        "Only admin or operation users can mark tasks as completed",
         403,
       );
     }
@@ -381,10 +379,10 @@ export async function updateTaskStatusService(taskId, newStatus, currentUser) {
   // Return fresh populated task
   const updated = await TaskModel.findById(taskId).populate(populateOptions);
 
-  // Send email notification when an employee completes a task (fire-and-forget)
-  if (newStatus === TASK_STATUS.COMPLETED && !isAdminOrOp(currentUser)) {
-    notifyTaskCompleted(updated).catch((err) =>
-      console.error("Failed to send task-completed email:", err.message),
+  // Send email notification when an employee submits a task for review (fire-and-forget)
+  if (newStatus === TASK_STATUS.IN_REVIEW && !isAdminOrOp(currentUser)) {
+    notifyTaskInReview(updated).catch((err) =>
+      console.error("Failed to send task-review email:", err.message),
     );
   }
 
@@ -442,6 +440,11 @@ export async function getTaskAnalyticsService(queryParams, currentUser) {
             $cond: [{ $eq: ["$status", TASK_STATUS.IN_PROGRESS] }, 1, 0],
           },
         },
+        inReview: {
+          $sum: {
+            $cond: [{ $eq: ["$status", TASK_STATUS.IN_REVIEW] }, 1, 0],
+          },
+        },
         postponed: {
           $sum: {
             $cond: [{ $eq: ["$status", TASK_STATUS.POSTPONED] }, 1, 0],
@@ -455,6 +458,7 @@ export async function getTaskAnalyticsService(queryParams, currentUser) {
         totalTasks: 1,
         completed: 1,
         pending: 1,
+        inReview: 1,
         inProgress: 1,
         postponed: 1,
         completionRate: {
@@ -486,6 +490,7 @@ export async function getTaskAnalyticsService(queryParams, currentUser) {
       completed: 0,
       pending: 0,
       inProgress: 0,
+      inReview: 0,
       postponed: 0,
       completionRate: 0,
     }),
