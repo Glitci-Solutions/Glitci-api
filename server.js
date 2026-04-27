@@ -63,7 +63,7 @@ mountRoutes(app);
 
 // Root endpoint
 app.get("/", (req, res) => {
-  res.send("Glitci API is running.");
+  res.send("Glitci API is now running. 🔥");
 });
 
 // 404 handler
