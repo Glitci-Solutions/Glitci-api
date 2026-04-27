@@ -71,7 +71,10 @@ export async function getUsersService(queryParams) {
   const filter = buildRegexFilter(query, ["page", "limit", "sort"]);
 
   // Exclude admins and employees from the list (managed via separate endpoints)
-  filter.role = { $nin: [USER_ROLES.ADMIN, USER_ROLES.EMPLOYEE] };
+  filter.role = {
+    ...filter.role,
+    $nin: [USER_ROLES.ADMIN, USER_ROLES.EMPLOYEE],
+  };
 
   const totalCount = await UserModel.countDocuments(filter);
 
