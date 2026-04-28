@@ -224,3 +224,13 @@ export const deleteTaskValidator = [
   param("id").isMongoId().withMessage("Invalid task ID"),
   validatorMiddleware,
 ];
+
+export const addTaskCommentValidator = [
+  param("id").isMongoId().withMessage("Invalid task ID"),
+  check("text")
+    .notEmpty()
+    .withMessage("Comment text is required")
+    .isLength({ max: 2000 })
+    .withMessage("Comment text cannot exceed 2000 characters"),
+  validatorMiddleware,
+];

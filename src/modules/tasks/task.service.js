@@ -106,6 +106,17 @@ function buildTaskResponse(task) {
         changedByName: `${h.changedBy?.role}: ${h.changedBy?.name}` || null,
         description: h.description,
       })),
+    comments: (task.comments || [])
+      .slice()
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .map((c) => ({
+        id: c._id,
+        text: c.text,
+        role: c.role,
+        createdBy: c.createdBy?._id || c.createdBy,
+        createdByName: c.createdBy?.name || null,
+        createdAt: c.createdAt,
+      })),
     createdAt: task.createdAt,
     updatedAt: task.updatedAt,
   };
@@ -124,6 +135,7 @@ const populateOptions = [
   { path: "project", select: "name" },
   { path: "createdBy", select: "name" },
   { path: "history.changedBy", select: "name role" },
+  { path: "comments.createdBy", select: "name" },
 ];
 
 /**
@@ -565,4 +577,37 @@ export async function deleteTaskService(taskId) {
     throw new ApiError("Task not found", 404);
   }
   return true;
+}
+
+// ─── Add Comment ───────────────────────────────────────────
+
+export async function addTaskCommentService(taskId, text, currentUser) {
+  const task = await TaskModel.findById(taskId).populate({
+    path: "assignedTo",
+    select: "user",
+  });
+
+  if (!task) {
+    throw new ApiError("Task not found", 404);
+  }
+
+  // Employees can only comment on their own tasks
+  if (!isAdminOrOp(currentUser)) {
+    const employeeId = await resolveEmployeeId(currentUser._id);
+    if (task.assignedTo._id.toString() !== employeeId.toString()) {
+      throw new ApiError("You are not authorized to comment on this task", 403);
+    }
+  }
+
+  task.comments.push({
+    text,
+    createdBy: currentUser._id,
+    role: currentUser.role,
+    createdAt: new Date(),
+  });
+
+  await task.save();
+
+  const updated = await TaskModel.findById(taskId).populate(populateOptions);
+  return buildTaskResponse(updated);
 }

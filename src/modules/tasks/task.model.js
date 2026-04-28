@@ -26,6 +26,31 @@ const statusHistorySchema = new mongoose.Schema(
   { _id: false },
 );
 
+const commentSchema = new mongoose.Schema(
+  {
+    text: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 2000,
+    },
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    role: {
+      type: String,
+      required: true,
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  { _id: true },
+);
+
 const taskSchema = new mongoose.Schema(
   {
     name: {
@@ -86,6 +111,10 @@ const taskSchema = new mongoose.Schema(
     },
     history: {
       type: [statusHistorySchema],
+      default: [],
+    },
+    comments: {
+      type: [commentSchema],
       default: [],
     },
   },

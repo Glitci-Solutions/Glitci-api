@@ -7,6 +7,7 @@ import {
   getTaskAnalytics,
   updateTask,
   deleteTask,
+  addTaskComment,
 } from "./task.controller.js";
 import {
   createTaskValidator,
@@ -15,6 +16,7 @@ import {
   taskAnalyticsValidator,
   updateTaskValidator,
   deleteTaskValidator,
+  addTaskCommentValidator,
 } from "./task.validator.js";
 import { protect, allowedTo } from "../auth/auth.middleware.js";
 import { USER_ROLES } from "../../shared/constants/userRoles.enums.js";
@@ -27,6 +29,7 @@ router.use(protect);
 // Must be defined BEFORE /:id to avoid route conflict
 router.get(
   "/analytics/summary",
+  allowedTo(USER_ROLES.ADMIN, USER_ROLES.OPERATION, USER_ROLES.EMPLOYEE),
   taskAnalyticsValidator,
   getTaskAnalytics,
 );
@@ -39,11 +42,21 @@ router.post(
   createTasks,
 );
 
-// GET /tasks — List tasks (all roles, filtered by role in service)
-router.get("/", getTasksValidator, getTasks);
+// GET /tasks — List tasks
+router.get(
+  "/",
+  allowedTo(USER_ROLES.ADMIN, USER_ROLES.OPERATION, USER_ROLES.EMPLOYEE),
+  getTasksValidator,
+  getTasks,
+);
 
-// PATCH /tasks/:id/status — Update status (all roles, transition logic in service)
-router.patch("/:id/status", updateTaskStatusValidator, updateTaskStatus);
+// PATCH /tasks/:id/status — Update status
+router.patch(
+  "/:id/status",
+  allowedTo(USER_ROLES.ADMIN, USER_ROLES.OPERATION, USER_ROLES.EMPLOYEE),
+  updateTaskStatusValidator,
+  updateTaskStatus,
+);
 
 // PATCH /tasks/:id — Update task details (admin/operation only)
 router.patch(
@@ -59,6 +72,14 @@ router.delete(
   allowedTo(USER_ROLES.ADMIN, USER_ROLES.OPERATION),
   deleteTaskValidator,
   deleteTask,
+);
+
+// POST /tasks/:id/comments — Add a comment
+router.post(
+  "/:id/comments",
+  allowedTo(USER_ROLES.ADMIN, USER_ROLES.OPERATION, USER_ROLES.EMPLOYEE),
+  addTaskCommentValidator,
+  addTaskComment,
 );
 
 export default router;

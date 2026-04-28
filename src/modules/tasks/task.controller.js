@@ -6,6 +6,7 @@ import {
   getTaskAnalyticsService,
   updateTaskService,
   deleteTaskService,
+  addTaskCommentService,
 } from "./task.service.js";
 
 // POST /tasks — Create task(s) (bulk, accepts array)
@@ -49,4 +50,14 @@ export const updateTask = asyncHandler(async (req, res) => {
 export const deleteTask = asyncHandler(async (req, res) => {
   await deleteTaskService(req.params.id);
   res.status(200).json({ message: "Task deleted successfully" });
+});
+
+// POST /tasks/:id/comments — Add a comment to a task
+export const addTaskComment = asyncHandler(async (req, res) => {
+  const task = await addTaskCommentService(
+    req.params.id,
+    req.body.text,
+    req.user,
+  );
+  res.status(201).json({ message: "Comment added successfully", data: task });
 });

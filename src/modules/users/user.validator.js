@@ -23,7 +23,12 @@ export const createUserValidator = [
 
   check("role")
     .optional()
-    .isIn([USER_ROLES.EMPLOYEE, USER_ROLES.MANAGER, USER_ROLES.OPERATION])
+    .isIn([
+      USER_ROLES.ADMIN,
+      USER_ROLES.EMPLOYEE,
+      USER_ROLES.MANAGER,
+      USER_ROLES.OPERATION,
+    ])
     .withMessage("Invalid role"),
 
   validatorMiddleware,
