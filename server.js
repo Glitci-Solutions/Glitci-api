@@ -91,7 +91,7 @@ if (!globalThis.__petyardPingIntervalId) {
 // Function to ping the server by hitting the specified API route
 function pingServer() {
   const pingEndpoint =
-    "https://glitci.onrender.com/api/v1/clientsptions?__internal_ping=1";
+    "https://glitci.onrender.com/api/v1/clients?__internal_ping=1";
 
   // Send a GET request to the ping endpoint
   const req = https
