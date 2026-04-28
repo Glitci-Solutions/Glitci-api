@@ -6,7 +6,7 @@ import morgan from "morgan";
 import path from "path";
 import { fileURLToPath } from "url";
 import { config } from "dotenv";
-import http from "http";
+import https from "https";
 
 import { dbConnection } from "./src/config/dbConnection.js";
 import { globalError } from "./src/shared/middlewares/errorMiddleware.js";
