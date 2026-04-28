@@ -73,7 +73,7 @@ export async function createClientService(payload) {
   const client = await ClientModel.create({
     name,
     companyName,
-    email: email.toLowerCase(),
+    email: email ? email.toLowerCase() : undefined,
     phones: phones || [],
     industry: industry || null,
     notes: notes || null,
@@ -95,7 +95,7 @@ export async function updateClientService(id, payload) {
 
   if (name !== undefined) client.name = name;
   if (companyName !== undefined) client.companyName = companyName;
-  if (email !== undefined) client.email = email.toLowerCase();
+  if (email !== undefined) client.email = email ? email.toLowerCase() : email;
   if (phones !== undefined) client.phones = phones;
   if (industry !== undefined) client.industry = industry;
   if (notes !== undefined) client.notes = notes;

@@ -16,8 +16,7 @@ export const createClientValidator = [
     .withMessage("Company name must be between 2 and 100 characters"),
 
   check("email")
-    .notEmpty()
-    .withMessage("Email is required")
+    .optional({ checkFalsy: true })
     .isEmail()
     .withMessage("Invalid email format"),
 
