@@ -114,11 +114,6 @@ export async function createUserService(payload) {
     throw new ApiError("Missing required fields from (name, email, role)", 400);
   }
 
-  // Block ADMIN creation
-  if (role === USER_ROLES.ADMIN) {
-    throw new ApiError("Cannot create admin users through this endpoint", 400);
-  }
-
   // Block EMPLOYEE creation - must use /employees route
   if (role === USER_ROLES.EMPLOYEE) {
     throw new ApiError(
