@@ -26,18 +26,23 @@ router.get("/", getEmployees);
 // POST /employees - Create employee
 router.post(
   "/",
-  allowedTo(USER_ROLES.ADMIN, USER_ROLES.MANAGER, USER_ROLES.OPERATION),
+  allowedTo(USER_ROLES.ADMIN, USER_ROLES.OPERATION),
   createEmployeeValidator,
   createEmployee,
 );
 
 // GET /employees/:id - Get single employee
-router.get("/:id", employeeIdValidator, getEmployee);
+router.get(
+  "/:id",
+  employeeIdValidator,
+  allowedTo(USER_ROLES.ADMIN, USER_ROLES.OPERATION, USER_ROLES.MANAGER),
+  getEmployee,
+);
 
 // PATCH /employees/:id - Update employee
 router.patch(
   "/:id",
-  allowedTo(USER_ROLES.ADMIN, USER_ROLES.MANAGER, USER_ROLES.OPERATION),
+  allowedTo(USER_ROLES.ADMIN, USER_ROLES.OPERATION),
   updateEmployeeValidator,
   updateEmployee,
 );
@@ -45,7 +50,7 @@ router.patch(
 // PATCH /employees/:id/toggle-active - Toggle employee status
 router.patch(
   "/:id/toggle-active",
-  allowedTo(USER_ROLES.ADMIN, USER_ROLES.MANAGER, USER_ROLES.OPERATION),
+  allowedTo(USER_ROLES.ADMIN, USER_ROLES.OPERATION),
   employeeIdValidator,
   toggleEmployeeActive,
 );
@@ -53,7 +58,7 @@ router.patch(
 // DELETE /employees/:id - Delete employee permanently
 router.delete(
   "/:id",
-  allowedTo(USER_ROLES.ADMIN, USER_ROLES.MANAGER, USER_ROLES.OPERATION),
+  allowedTo(USER_ROLES.ADMIN, USER_ROLES.OPERATION),
   employeeIdValidator,
   deleteEmployee,
 );

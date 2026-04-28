@@ -38,7 +38,7 @@ router.patch(
 router.delete("/me", protect, deleteMe);
 
 // ----- Admin Routes -----
-router.use(protect, allowedTo(USER_ROLES.ADMIN, USER_ROLES.OPERATION));
+router.use(protect, allowedTo(USER_ROLES.ADMIN));
 
 router.route("/").get(getUsers).post(createUserValidator, createUser);
 
