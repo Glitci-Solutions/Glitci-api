@@ -6,6 +6,7 @@ import morgan from "morgan";
 import path from "path";
 import { fileURLToPath } from "url";
 import { config } from "dotenv";
+import hpp from "hpp";
 
 import { dbConnection } from "./src/config/dbConnection.js";
 import { globalError } from "./src/shared/middlewares/errorMiddleware.js";
@@ -77,6 +78,43 @@ app.use(globalError);
 const server = app.listen(PORT, () =>
   console.log(`Glitci API running on port ${PORT}`),
 );
+
+// // Ping the server immediately after starting the server
+pingServer();
+
+// Ping the server every 14 minutes (14 * 60 * 1000 milliseconds)
+const pingInterval = 14 * 60 * 1000;
+if (!globalThis.__petyardPingIntervalId) {
+  globalThis.__petyardPingIntervalId = setInterval(pingServer, pingInterval);
+}
+
+// Function to ping the server by hitting the specified API route
+function pingServer() {
+  const pingEndpoint =
+    "https://glitci.onrender.com/api/v1/clientsptions?__internal_ping=1";
+
+  // Send a GET request to the ping endpoint
+  const req = https
+    .request(
+      pingEndpoint,
+      {
+        method: "GET",
+        headers: {
+          "User-Agent": "glitci-internal-ping",
+          "X-Internal-Ping": "1",
+        },
+      },
+      (res) => {
+        console.log(`Ping sent to server: ${res.statusCode}`);
+        res.resume();
+      },
+    )
+    .on("error", (err) => {
+      console.error("Error while sending ping:", err);
+    });
+
+  req.end();
+}
 
 // UnhandledRejections event handler
 process.on("unhandledRejection", (err) => {
