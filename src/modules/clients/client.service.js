@@ -73,7 +73,7 @@ export async function createClientService(payload) {
   const client = await ClientModel.create({
     name,
     companyName,
-    email: email ? email.toLowerCase() : undefined,
+    email: email ? email.toLowerCase() : email,
     phones: phones || [],
     industry: industry || null,
     notes: notes || null,

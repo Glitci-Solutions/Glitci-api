@@ -70,7 +70,7 @@ export async function createDepartmentService(payload) {
   }
 
   const dept = await DepartmentModel.create({
-    name: name.toLowerCase(),
+    name: name,
     isActive: true,
   });
 
@@ -90,7 +90,7 @@ export async function updateDepartmentService(id, payload) {
   if (name !== undefined) {
     // Check for duplicate name
     const existing = await DepartmentModel.findOne({
-      name: name.toLowerCase(),
+      name: name,
       _id: { $ne: id },
     });
     if (existing) {

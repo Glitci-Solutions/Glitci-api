@@ -15,17 +15,11 @@ export const createClientValidator = [
     .isLength({ min: 2, max: 100 })
     .withMessage("Company name must be between 2 and 100 characters"),
 
-  check("email")
-    .optional({ checkFalsy: true })
-    .isEmail()
-    .withMessage("Invalid email format"),
+  check("email").optional(),
 
   check("phones").optional().isArray().withMessage("Phones must be an array"),
 
-  check("phones.*")
-    .optional()
-    .isMobilePhone("any")
-    .withMessage("Invalid phone number format"),
+  check("phones.*").optional(),
 
   check("industry")
     .optional()
@@ -53,14 +47,11 @@ export const updateClientValidator = [
     .isLength({ min: 2, max: 100 })
     .withMessage("Company name must be between 2 and 100 characters"),
 
-  check("email").optional().isEmail().withMessage("Invalid email format"),
+  check("email").optional(),
 
   check("phones").optional().isArray().withMessage("Phones must be an array"),
 
-  check("phones.*")
-    .optional()
-    .isMobilePhone("any")
-    .withMessage("Invalid phone number format"),
+  check("phones.*").optional(),
 
   check("industry")
     .optional()
