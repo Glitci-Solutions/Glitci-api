@@ -4,3 +4,5 @@ node_modules/
 docs/
 glitci-postgresql/
 .vscode/
+single_project_view_spec.md
+transactions_view_spec.md

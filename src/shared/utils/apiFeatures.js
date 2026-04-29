@@ -42,7 +42,14 @@ export function buildRegexFilter(query, excludeKeys = []) {
     const value = query[key];
 
     if (typeof value === "string") {
-      filter[key] = { $regex: value, $options: "i" };
+      const lowerValue = value.toLowerCase();
+      if (lowerValue === "true") {
+        filter[key] = true;
+      } else if (lowerValue === "false") {
+        filter[key] = false;
+      } else {
+        filter[key] = { $regex: value, $options: "i" };
+      }
     } else {
       filter[key] = value;
     }
