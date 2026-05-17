@@ -108,34 +108,34 @@ Glitci's Attendance module gives companies a full workforce presence tracking sy
 > ⚠️ Fix #3: Enums belong in `src/shared/constants/`, not in the module folder. This matches the existing pattern for `USER_ROLES` and other shared constants.
 
 ```javascript
-export const ATTENDANCE_STATUS = {
+export const ATTENDANCE_STATUS = Object.freeze({
   PRESENT:  "present",
   LATE:     "late",
   ABSENT:   "absent",
   LEAVE:    "leave",
   HALF_DAY: "half_day",
   HOLIDAY:  "holiday",
-};
+});
 
-export const LEAVE_TYPE = {
+export const LEAVE_TYPE = Object.freeze({
   SICK:     "sick",
   VACATION: "vacation",
   PERSONAL: "personal",
   UNPAID:   "unpaid",
-};
+});
 
-export const ATTENDANCE_SOURCE = {
+export const ATTENDANCE_SOURCE = Object.freeze({
   QR_SCAN:       "qr_scan",
   MANUAL:        "manual",
   AUTO_CHECKOUT: "auto_checkout",
   AUTO_ABSENT:   "auto_absent",
-};
+});
 
-export const LEAVE_STATUS = {
+export const LEAVE_STATUS = Object.freeze({
   PENDING:  "pending",
   APPROVED: "approved",
   REJECTED: "rejected",
-};
+});
 ```
 
 ---
@@ -390,6 +390,7 @@ export const QRToken =
 import crypto from "crypto";
 import { AttendanceConfig } from "./attendanceConfig.model.js";
 import { QRToken } from "./qrToken.model.js";
+import { ApiError } from "../../shared/utils/ApiError.js";
 
 export async function generateQRToken() {
   const config = await AttendanceConfig.getConfig();
@@ -410,22 +411,22 @@ export async function validateQRToken(token, employeeId) {
   try {
     parsed = JSON.parse(Buffer.from(token, "base64url").toString("utf8"));
   } catch {
-    throw new Error("Invalid QR token format");
+    throw new ApiError("Invalid QR token format", 400);
   }
 
   const { issuedAt, expiresAt, signature } = parsed;
 
-  if (Date.now() > expiresAt) throw new Error("QR token has expired");
+  if (Date.now() > expiresAt) throw new ApiError("QR token has expired", 400);
 
   const config = await AttendanceConfig.getConfig();
   const expectedSig = crypto
     .createHmac("sha256", config.qrSigningSecret)
     .update(`${issuedAt}.${expiresAt}`)
     .digest("hex");
-  if (signature !== expectedSig) throw new Error("QR token signature invalid");
+  if (signature !== expectedSig) throw new ApiError("QR token signature invalid", 400);
 
   const alreadyUsed = await QRToken.findOne({ token });
-  if (alreadyUsed) throw new Error("QR token has already been used");
+  if (alreadyUsed) throw new ApiError("QR token has already been used", 400);
 
   // Mark as used atomically
   await QRToken.create({ token, usedBy: employeeId });
@@ -499,8 +500,8 @@ export async function verifyLocation(employeeId, lat, lng) {
   const result = await validateLocation(lat, lng, config);
   if (!result.withinRange) {
     throw new ApiError(
-      403,
-      `You are ${result.distance}m from the office. Maximum allowed: ${config.allowedRadius}m.`
+      `You are ${result.distance}m from the office. Maximum allowed: ${config.allowedRadius}m.`,
+      403
     );
   }
   return { withinRange: true, distance: result.distance };
@@ -595,6 +596,7 @@ import asyncHandler from "express-async-handler";
 import { AttendanceConfig } from "./attendanceConfig.model.js";
 import { EmployeeModel } from "../employees/employee.model.js";
 import { ApiError } from "../../shared/utils/ApiError.js";
+import { EMPLOYMENT_TYPE } from "../../shared/constants/employee.enums.js";
 
 // ── Kiosk JWT authentication ──────────────────────────────────────────────────
 // Does NOT use protect — kiosk devices authenticate with KIOSK_JWT_SECRET, not user JWTs
@@ -643,7 +645,7 @@ export const resolveEmployee = asyncHandler(async (req, res, next) => {
 export const freelancerGuard = asyncHandler(async (req, res, next) => {
   const config = await AttendanceConfig.getConfig();
   if (
-    req.employee.employmentType === "freelancer" &&
+    req.employee.employmentType === EMPLOYMENT_TYPE.FREELANCER &&
     !config.trackFreelancers
   ) {
     return next(
@@ -680,7 +682,7 @@ export function generateAttendanceWorkbook(records) {
 
   records.forEach((r) =>
     sheet.addRow({
-      name:     r.employee?.name                     || "—",
+      name:     r.employee?.user?.name              || "—",
       dept:     r.employee?.department?.name         || "—",
       date:     r.date.toISOString().split("T")[0],
       status:   r.status,
@@ -710,7 +712,10 @@ import rateLimit from "express-rate-limit";
 export const kioskLoginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
-  message: { message: "Too many login attempts. Please try again in 15 minutes." },
+  message: {
+    status: "error",
+    message: "Too many login attempts. Please try again in 15 minutes.",
+  },
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -929,7 +934,7 @@ export default router;
 > ⚠️ Fix #8: All validators are named exports (no `import *`). Enum values imported from shared constants.
 
 ```javascript
-import { check, query } from "express-validator";
+import { check, query, param } from "express-validator";
 import { EMPLOYMENT_TYPE } from "../../shared/constants/employee.enums.js";
 import {
   ATTENDANCE_STATUS,
@@ -1037,7 +1042,6 @@ export const exportQuery = [
 ];
 
 // ── Param validators (MongoId checks for all :id / :deviceId routes) ─────────
-import { param } from "express-validator";
 
 export const mongoIdParam = [
   param("id").isMongoId().withMessage("Invalid ID format"),
@@ -1225,10 +1229,10 @@ export const mySummary = asyncHandler(async (req, res) => {
   });
   const summary = {
     total:        records.length,
-    present:      records.filter((r) => r.status === "present").length,
-    late:         records.filter((r) => r.status === "late").length,
-    absent:       records.filter((r) => r.status === "absent").length,
-    leave:        records.filter((r) => r.status === "leave").length,
+    present:      records.filter((r) => r.status === ATTENDANCE_STATUS.PRESENT).length,
+    late:         records.filter((r) => r.status === ATTENDANCE_STATUS.LATE).length,
+    absent:       records.filter((r) => r.status === ATTENDANCE_STATUS.ABSENT).length,
+    leave:        records.filter((r) => r.status === ATTENDANCE_STATUS.LEAVE).length,
     totalMinutes: records.reduce((sum, r) => sum + (r.durationMinutes || 0), 0),
   };
   res.json({ data: { summary, records } });
@@ -1305,7 +1309,7 @@ async function _createLeaveAttendanceRecords(lr) {
     days.map((date) =>
       Attendance.findOneAndUpdate(
         { employee: lr.employee, date },
-        { $setOnInsert: { status: "leave", leaveRequest: lr._id } },
+        { $setOnInsert: { status: ATTENDANCE_STATUS.LEAVE, leaveRequest: lr._id } },
         { upsert: true }
       )
     )
@@ -1350,8 +1354,8 @@ export const getDailyAttendance = asyncHandler(async (req, res) => {
   let result = employees.map((emp) => ({
     employee: {
       _id:        emp._id,
-      name:       emp.name,
-      email:      emp.email,
+      name:       emp.user?.name,
+      email:      emp.user?.email,
       department: emp.department,
     },
     attendance: recordMap[emp._id.toString()] || { status: ATTENDANCE_STATUS.ABSENT },
@@ -1601,9 +1605,9 @@ await startAutoAbsentCron();
 | Rule | Implementation |
 |---|---|
 | One record per employee per day | Unique index `{ employee, date }`. Return 409 on duplicate check-in. |
-| QR token expires in `qrLifetimeSeconds` (default 60s) | Checked in `qr.service.js`. Throws `ApiError(400, "QR token has expired")`. |
+| QR token expires in `qrLifetimeSeconds` (default 60s) | Checked in `qr.service.js`. Throws `ApiError("QR token has expired", 400)`. |
 | QR token single-use | TTL `qrToken` collection. Insert on use — duplicate key = replay. |
-| Employee must be within `allowedRadius` meters | Haversine in `geo.service.js`. Throws `ApiError(403, "You are Xm from the office...")`. |
+| Employee must be within `allowedRadius` meters | Haversine in `geo.service.js`. Throws `ApiError("You are Xm from the office...", 403)`. |
 | Status: `present` within grace period, `late` otherwise | `resolveStatus()` in `attendance.service.js` at check-in time. |
 | No double check-in | Check `checkIn.time` exists. Throws `ApiError(409)`. |
 | No double check-out | Check `checkOut.time` exists. Throws `ApiError(409)`. |
