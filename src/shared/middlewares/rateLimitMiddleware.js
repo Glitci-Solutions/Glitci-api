@@ -36,3 +36,15 @@ export const forgotPasswordRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// Kiosk PIN brute-force protection — 5 attempts per 15 minutes per IP
+export const kioskLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: {
+    status: "error",
+    message: "Too many login attempts. Please try again in 15 minutes.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
