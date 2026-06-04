@@ -552,6 +552,33 @@ export async function manualEntryService(payload) {
 
   const checkInTime = checkIn ? new Date(checkIn) : null;
   const checkOutTime = checkOut ? new Date(checkOut) : null;
+
+  // Validate checkIn/checkOut fall on the same calendar date
+  if (checkInTime) {
+    const ciDate = new Date(checkInTime);
+    ciDate.setUTCHours(0, 0, 0, 0);
+    if (ciDate.getTime() !== dateObj.getTime()) {
+      throw new ApiError(
+        `Check-in time must fall on the attendance date (${date}). Got: ${checkIn}`,
+        400
+      );
+    }
+  }
+  if (checkOutTime) {
+    const coDate = new Date(checkOutTime);
+    coDate.setUTCHours(0, 0, 0, 0);
+    if (coDate.getTime() !== dateObj.getTime()) {
+      throw new ApiError(
+        `Check-out time must fall on the attendance date (${date}). Got: ${checkOut}`,
+        400
+      );
+    }
+  }
+
+  if (checkInTime && checkOutTime && checkOutTime <= checkInTime) {
+    throw new ApiError("Check-out time must be after check-in time", 400);
+  }
+
   const durationMinutes =
     checkInTime && checkOutTime
       ? Math.round((checkOutTime - checkInTime) / 60000)
@@ -583,21 +610,47 @@ export async function updateManualEntryService(id, payload) {
   const existing = await Attendance.findById(id);
   if (!existing) throw new ApiError("Attendance record not found", 404);
 
+  const recordDate = new Date(existing.date);
+  recordDate.setUTCHours(0, 0, 0, 0);
+
   const updates = {};
   if (status !== undefined) updates.status = status;
   if (note !== undefined) updates.note = note;
   if (checkIn !== undefined) {
-    updates["checkIn.time"] = new Date(checkIn);
+    const ciTime = new Date(checkIn);
+    const ciDate = new Date(ciTime);
+    ciDate.setUTCHours(0, 0, 0, 0);
+    if (ciDate.getTime() !== recordDate.getTime()) {
+      throw new ApiError(
+        `Check-in time must fall on the record date (${existing.date.toISOString().slice(0, 10)}). Got: ${checkIn}`,
+        400
+      );
+    }
+    updates["checkIn.time"] = ciTime;
     updates["checkIn.source"] = ATTENDANCE_SOURCE.MANUAL;
   }
   if (checkOut !== undefined) {
-    updates["checkOut.time"] = new Date(checkOut);
+    const coTime = new Date(checkOut);
+    const coDate = new Date(coTime);
+    coDate.setUTCHours(0, 0, 0, 0);
+    if (coDate.getTime() !== recordDate.getTime()) {
+      throw new ApiError(
+        `Check-out time must fall on the record date (${existing.date.toISOString().slice(0, 10)}). Got: ${checkOut}`,
+        400
+      );
+    }
+    updates["checkOut.time"] = coTime;
     updates["checkOut.source"] = ATTENDANCE_SOURCE.MANUAL;
   }
 
   const resolvedCheckIn = updates["checkIn.time"] ?? existing.checkIn?.time;
   const resolvedCheckOut =
     updates["checkOut.time"] ?? existing.checkOut?.time;
+
+  if (resolvedCheckIn && resolvedCheckOut && new Date(resolvedCheckOut) <= new Date(resolvedCheckIn)) {
+    throw new ApiError("Check-out time must be after check-in time", 400);
+  }
+
   if (resolvedCheckIn && resolvedCheckOut) {
     updates.durationMinutes = Math.round(
       (new Date(resolvedCheckOut) - new Date(resolvedCheckIn)) / 60000
