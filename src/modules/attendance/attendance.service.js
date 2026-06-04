@@ -579,28 +579,39 @@ export async function manualEntryService(payload) {
     throw new ApiError("Check-out time must be after check-in time", 400);
   }
 
+  // Check for existing record — prevent silent overwrites
+  const existing = await Attendance.findOne({ employee, date: dateObj });
+  if (existing) {
+    throw new ApiError(
+      `An attendance record already exists for this employee on ${date} (ID: ${existing._id}). Use PATCH /manual/${existing._id} to update it.`,
+      409
+    );
+  }
+
   const durationMinutes =
     checkInTime && checkOutTime
       ? Math.round((checkOutTime - checkInTime) / 60000)
       : undefined;
 
-  const record = await Attendance.findOneAndUpdate(
-    { employee, date: dateObj },
-    {
-      status,
-      note,
-      ...(checkInTime && {
-        "checkIn.time": checkInTime,
-        "checkIn.source": ATTENDANCE_SOURCE.MANUAL,
-      }),
-      ...(checkOutTime && {
-        "checkOut.time": checkOutTime,
-        "checkOut.source": ATTENDANCE_SOURCE.MANUAL,
-      }),
-      ...(durationMinutes !== undefined && { durationMinutes }),
-    },
-    { upsert: true, new: true }
-  );
+  const record = await Attendance.create({
+    employee,
+    date: dateObj,
+    status,
+    note,
+    ...(checkInTime && {
+      checkIn: {
+        time: checkInTime,
+        source: ATTENDANCE_SOURCE.MANUAL,
+      },
+    }),
+    ...(checkOutTime && {
+      checkOut: {
+        time: checkOutTime,
+        source: ATTENDANCE_SOURCE.MANUAL,
+      },
+    }),
+    ...(durationMinutes !== undefined && { durationMinutes }),
+  });
   return record;
 }
 
