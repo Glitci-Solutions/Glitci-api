@@ -1538,17 +1538,20 @@ export const getDailyAttendance = asyncHandler(async (req, res) => {
 
 export const getMonthlySummary = asyncHandler(async (req, res) => {
   const { month, year } = req.query;
-  const start = new Date(year, month - 1, 1);
-  const end   = new Date(year, month, 0, 23, 59, 59);
-  const records = await Attendance.find({ date: { $gte: start, $lte: end } }).populate({
-    path:     "employee",
-    populate: [
-      { path: "user",       select: "name email" },
-      { path: "department", select: "name" },
-    ],
-  });
+  const records = await getMonthlySummaryService(month, year);
   res.json({ data: records });
 });
+
+// ── getMonthlySummaryService (in attendance.service.js) ──
+// Returns an array grouped by employee:
+// [
+//   {
+//     employee: { _id, name, email, department, employmentType },
+//     summary:  { total, present, late, absent, leave, totalMinutes },
+//     records:  [ { date, status, checkIn, checkOut, durationMinutes, ... } ]
+//   },
+//   ...
+// ]
 
 export const getEmployeeHistory = asyncHandler(async (req, res) => {
   const { from, to, page = 1, limit = 30 } = req.query;

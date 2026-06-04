@@ -480,7 +480,45 @@ export async function getMonthlySummaryService(month, year) {
       { path: "department", select: "name" },
     ],
   });
-  return records;
+
+  const grouped = {};
+  for (const r of records) {
+    const empId = r.employee?._id?.toString();
+    if (!empId) continue;
+
+    if (!grouped[empId]) {
+      grouped[empId] = {
+        employee: {
+          _id: r.employee._id,
+          name: r.employee.user?.name,
+          email: r.employee.user?.email,
+          department: r.employee.department,
+          employmentType: r.employee.employmentType,
+        },
+        summary: {
+          total: 0,
+          present: 0,
+          late: 0,
+          absent: 0,
+          leave: 0,
+          totalMinutes: 0,
+        },
+        records: [],
+      };
+    }
+
+    const g = grouped[empId];
+    g.summary.total += 1;
+    if (r.status === ATTENDANCE_STATUS.PRESENT) g.summary.present += 1;
+    if (r.status === ATTENDANCE_STATUS.LATE) g.summary.late += 1;
+    if (r.status === ATTENDANCE_STATUS.ABSENT) g.summary.absent += 1;
+    if (r.status === ATTENDANCE_STATUS.LEAVE) g.summary.leave += 1;
+    g.summary.totalMinutes += r.durationMinutes || 0;
+
+    g.records.push(r);
+  }
+
+  return Object.values(grouped);
 }
 
 export async function getEmployeeHistoryService(
