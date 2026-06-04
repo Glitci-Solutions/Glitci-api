@@ -6,3 +6,8 @@ glitci-postgresql/
 .vscode/
 single_project_view_spec.md
 transactions_view_spec.md
+.aider*
+src/modules/analytics/ANALYTICS_DESIGN_SPEC.md
+src/modules/employees/EMPLOYEES_DESIGN_SPEC.md
+src/modules/users/USERS_DESIGN_SPEC.md
+ATTENDANCE_MODULE_PLAN.md

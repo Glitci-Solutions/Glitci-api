@@ -15,7 +15,7 @@ const EGYPT_TZ = "Africa/Cairo";
  * Get the UTC offset in minutes for Egypt at a specific point in time.
  * Uses Intl so it automatically handles any future DST changes.
  */
-function getEgyptOffsetMinutes(date) {
+export function getEgyptOffsetMinutes(date) {
   const utcStr = date.toLocaleString("en-US", { timeZone: "UTC" });
   const egyptStr = date.toLocaleString("en-US", { timeZone: EGYPT_TZ });
   return (new Date(egyptStr) - new Date(utcStr)) / 60_000;
