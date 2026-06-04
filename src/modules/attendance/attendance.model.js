@@ -25,7 +25,6 @@ const attendanceSchema = new mongoose.Schema(
       source: {
         type: String,
         enum: Object.values(ATTENDANCE_SOURCE),
-        default: ATTENDANCE_SOURCE.QR_SCAN,
       },
     },
     checkOut: {
