@@ -14,7 +14,10 @@ import { ApiError } from "./src/shared/utils/ApiError.js";
 import { mountRoutes } from "./src/app/routes.js";
 import { egyptTimezoneReplacer } from "./src/shared/utils/egyptTimezone.js";
 import { AttendanceConfig } from "./src/modules/attendance/attendanceConfig.model.js";
-import { startAutoCheckoutCron, startAutoAbsentCron } from "./src/cron/attendance.cron.js";
+import {
+  startAutoCheckoutCron,
+  startAutoAbsentCron,
+} from "./src/cron/attendance.cron.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -104,8 +107,7 @@ AttendanceConfig.getConfig()
 
 // Function to ping the server by hitting the specified API route
 function pingServer() {
-  const pingEndpoint =
-    "https://glitci.onrender.com/api/v1/clients?__internal_ping=1";
+  const pingEndpoint = "https://glitci.onrender.com";
 
   // Send a GET request to the ping endpoint
   const req = https
