@@ -107,7 +107,7 @@ AttendanceConfig.getConfig()
 
 // Function to ping the server by hitting the specified API route
 function pingServer() {
-  const pingEndpoint = "https://glitci.onrender.com";
+  const pingEndpoint = "https://glitci.onrender.com/api/v1/health";
 
   // Send a GET request to the ping endpoint
   const req = https

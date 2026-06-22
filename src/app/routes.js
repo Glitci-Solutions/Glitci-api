@@ -16,6 +16,12 @@ import assetRoutes from "../modules/assets/asset.routes.js";
 import attendanceRoutes from "../modules/attendance/attendance.routes.js";
 
 export function mountRoutes(app) {
+  // Health-check endpoint – no auth required.
+  // Use this for keep-alive pings to avoid 401 noise in the logs.
+  app.get("/api/v1/health", (req, res) => {
+    res.status(200).json({ status: "ok" });
+  });
+
   app.use("/api/v1/auth", authRoutes);
   app.use("/api/v1/users", userRoutes);
   app.use("/api/v1/employees", employeeRoutes);
